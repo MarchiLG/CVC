@@ -1,0 +1,18 @@
+# Configuração das câmeras IP registradas.
+# Ajuste id, name e url conforme os dados reais de cada câmera na sua rede.
+# A "url" pode ser um stream RTSP (mais comum em câmeras IP dedicadas)
+# ou uma URL HTTP/MJPEG, dependendo do fabricante.
+#
+# Credenciais não ficam aqui: a url referencia uma variável de ambiente
+# (definida em .env, veja .env.example) e é expandida em tempo de carga.
+
+cameras:
+  - id: "cam1"
+    name: "C1"
+    url: "${CAM1_URL}"
+    enabled: true
+
+  - id: "cam2"
+    name: "C2"
+    url: "${CAM2_URL}"
+    enabled: true

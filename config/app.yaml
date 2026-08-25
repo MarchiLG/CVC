@@ -1,0 +1,24 @@
+# Ajustes globais da aplicação. Todos os campos são opcionais — o que
+# não for definido aqui usa o padrão em config/schema.py.
+
+vision:
+  device: cuda  # auto | cpu | cuda
+
+db:
+  enabled: false  # true persiste os Flags também em event_log (ver notify/notifiers/db_notifier.py)
+  url: sqlite:///data/app.db
+
+llm:
+  # Desativado por padrão: requer o serviço Ollama rodando localmente
+  # (`ollama serve`) com o modelo abaixo já baixado (`ollama pull
+  # qwen2.5:1.5b`). Sem isso, o narrador falha de forma silenciosa a
+  # cada ciclo e só registra um aviso no log — ver llm/ollama_client.py.
+  # Ligue (enabled: true) depois de instalar/rodar o Ollama.
+  enabled: false
+  model: qwen2.5:1.5b
+  interval_seconds: 60
+  max_flags_per_summary: 20
+
+notify:
+  desktop:
+    enabled: true

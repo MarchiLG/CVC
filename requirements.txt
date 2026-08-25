@@ -1,0 +1,43 @@
+opencv-python
+PyYAML
+python-dotenv
+pytest
+
+# Detecção e rastreamento (fase 2). O pacote torch abaixo instala a
+# variante CPU por padrão via PyPI. Em uma máquina com GPU NVIDIA,
+# instale a variante CUDA ANTES do resto do requirements.txt seguindo
+# https://pytorch.org/get-started/locally/ (o comando exato depende da
+# versão do CUDA instalada) — a detecção de device em vision/device.py
+# é automática em tempo de execução, mas o wheel certo ainda precisa
+# ser instalado por máquina.
+torch
+torchvision
+ultralytics
+
+# Notificações desktop (fase 3)
+plyer
+
+# GUI (fase 4) — substitui Tkinter/Pillow como interface principal.
+# ruamel.yaml preserva comentários/formatação de tasks.yaml ao salvar
+# a partir das telas de calibração/configurações.
+PySide6
+ruamel.yaml
+
+# Reconhecimento facial + banco de funcionários (fase 5).
+# onnxruntime abaixo instala a variante CPU. Em uma máquina com GPU
+# NVIDIA, use `pip install onnxruntime-gpu` no lugar (os dois pacotes
+# são mutuamente exclusivos — instale apenas um). O código em
+# vision/face/recognizer.py já escolhe o provider certo em tempo de
+# execução a partir do que estiver instalado; só o pacote muda por
+# máquina, igual ao caso do torch/CUDA acima.
+numpy
+SQLAlchemy
+onnxruntime
+insightface
+
+# Narrador de alertas via LLM local (fase 6). O pacote "ollama" aqui é
+# só o cliente Python — o serviço Ollama em si é um pré-requisito
+# externo (não instalado via pip), ver README. Sem o serviço rodando,
+# o narrador falha de forma silenciosa e simplesmente não gera
+# resumos (ver llm/ollama_client.py).
+ollama
