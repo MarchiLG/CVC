@@ -1,0 +1,366 @@
+<!DOCTYPE html>
+<!--
+  index.html — the complete structure of the web interface.
+
+  This is a "single-page app": ALL screens (Live, Calibration, Settings,
+  Employees) already exist in the HTML below, and JavaScript merely
+  shows one at a time by toggling the `.is-active` class (see js/app.js).
+  There is no template engine and no build step — what is written here
+  is exactly what the browser loads.
+
+  Where to edit:
+    looks             css/theme.css (colors/spacing) and css/components.css
+    screen structure  this file
+    behavior          js/views/<screen>.js
+    wording           src/i18n.py (shared with the desktop GUI)
+
+  About data-i18n: every user-visible string carries a data-i18n="key"
+  attribute instead of literal text. js/i18n.js fills those in at
+  startup and again whenever the language picker changes, which is what
+  lets the interface switch language without reloading. Text typed
+  directly here would simply never translate.
+
+  Every element JavaScript looks up has an id starting with the screen
+  name (e.g. #live-grid, #calib-canvas), so anything here can be moved
+  or restyled as long as the ids are preserved.
+-->
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Computer Vision Central</title>
+
+  <!-- Order matters: theme defines the variables the other two use. -->
+  <link rel="stylesheet" href="/static/css/theme.css">
+  <link rel="stylesheet" href="/static/css/base.css">
+  <link rel="stylesheet" href="/static/css/components.css">
+
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>📹</text></svg>">
+</head>
+
+<body>
+<div class="app-shell">
+
+  <!-- ================================================================
+       SIDEBAR — navigation between screens + system status
+       ================================================================ -->
+  <aside class="sidebar">
+    <div class="sidebar__brand">
+      <div class="sidebar__logo" aria-hidden="true">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M2 7.5A1.5 1.5 0 0 1 3.5 6h9A1.5 1.5 0 0 1 14 7.5v9A1.5 1.5 0 0 1 12.5 18h-9A1.5 1.5 0 0 1 2 16.5z"/>
+          <path d="m14 10.5 5.4-3.1a.8.8 0 0 1 1.2.7v7.8a.8.8 0 0 1-1.2.7L14 13.5z"/>
+          <circle cx="8" cy="12" r="2.2"/>
+        </svg>
+      </div>
+      <div class="sidebar__title">
+        <strong data-i18n="app.name">Vision Central</strong>
+        <span data-i18n="app.tagline">video monitoring</span>
+      </div>
+    </div>
+
+    <!--
+      Navigation. `data-view` ties each button to a <section data-view>
+      further down — adding a new screen is just repeating that pair.
+    -->
+    <nav class="nav" id="nav">
+      <button class="nav__item is-active" data-view="live">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+          <rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/>
+          <rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/>
+        </svg>
+        <span data-i18n="nav.live">Live</span>
+      </button>
+
+      <button class="nav__item" data-view="calibration">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M3 17 17 3"/><circle cx="5" cy="19" r="2"/><circle cx="19" cy="5" r="2"/>
+          <path d="M14 14h7v7h-7z"/>
+        </svg>
+        <span data-i18n="nav.calibration">Calibration</span>
+      </button>
+
+      <button class="nav__item" data-view="settings">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="12" cy="12" r="3"/>
+          <path d="M19.4 15a1.6 1.6 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.6 1.6 0 0 0-1.8-.3 1.6 1.6 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1A1.6 1.6 0 0 0 9 19.4a1.6 1.6 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.6 1.6 0 0 0 .3-1.8 1.6 1.6 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1A1.6 1.6 0 0 0 4.6 9a1.6 1.6 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.6 1.6 0 0 0 1.8.3H9a1.6 1.6 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.6 1.6 0 0 0 1 1.5 1.6 1.6 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.6 1.6 0 0 0-.3 1.8V9a1.6 1.6 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.6 1.6 0 0 0-1.5 1z"/>
+        </svg>
+        <span data-i18n="nav.settings">Settings</span>
+      </button>
+
+      <button class="nav__item" data-view="employees">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/>
+          <path d="M22 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/>
+        </svg>
+        <span data-i18n="nav.employees">Employees</span>
+      </button>
+    </nav>
+
+    <!-- Filled in by js/app.js from GET /api/system and /api/state. -->
+    <div class="sidebar__status" id="system-status">
+      <!--
+        Language picker. Options come from GET /api/i18n (which reads
+        LANGUAGES in src/i18n.py), so adding a language there makes it
+        appear here with no change to this file.
+      -->
+      <div class="field field--inline sidebar__language">
+        <label for="language-select" data-i18n="status.language">Language</label>
+        <select id="language-select" class="input input--sm"></select>
+      </div>
+
+      <div class="status-row"><span data-i18n="status.device">Device</span><b id="status-device">—</b></div>
+      <div class="status-row"><span data-i18n="status.cameras">Cameras</span><b id="status-cameras">—</b></div>
+      <div class="status-row"><span data-i18n="status.pipelines">Pipelines</span><b id="status-pipelines">—</b></div>
+      <div class="status-row"><span data-i18n="status.narrator">Narrator</span><b id="status-llm">—</b></div>
+      <div class="status-row status-row--conn">
+        <span class="dot" id="status-dot"></span>
+        <span id="status-conn" data-i18n="status.connecting">connecting…</span>
+      </div>
+    </div>
+  </aside>
+
+  <!-- ================================================================
+       MAIN AREA — header + the currently active screen
+       ================================================================ -->
+  <main class="main">
+    <header class="topbar">
+      <div>
+        <h1 class="topbar__title" id="view-title">Live</h1>
+        <p class="topbar__subtitle" id="view-subtitle">All registered cameras, in real time.</p>
+      </div>
+
+      <div class="topbar__actions">
+        <!-- Extension point: an empty container in the header, for when
+             you want to hang screen-specific buttons off it (no screen
+             uses it yet). -->
+        <div id="topbar-slot" class="topbar__slot"></div>
+
+        <button class="btn btn--ghost" id="toggle-alerts" data-i18n-title="alerts.toggle">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M18 8a6 6 0 1 0-12 0c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.7 21a2 2 0 0 1-3.4 0"/>
+          </svg>
+          <span class="badge badge--count" id="alerts-count">0</span>
+        </button>
+      </div>
+    </header>
+
+    <div class="content">
+
+      <!-- ============================================================
+           SCREEN: LIVE
+           ============================================================ -->
+      <section class="view is-active" data-view="live">
+        <div class="live-toolbar">
+          <div class="field field--inline">
+            <label for="live-columns" data-i18n="live.columns">Columns</label>
+            <select id="live-columns" class="input input--sm">
+              <option value="auto" selected data-i18n="live.columns.auto">Automatic</option>
+              <option value="1">1</option>
+              <option value="2">2</option>
+              <option value="3">3</option>
+              <option value="4">4</option>
+            </select>
+          </div>
+
+          <div class="field field--inline">
+            <label for="live-quality" data-i18n="live.quality">Quality</label>
+            <select id="live-quality" class="input input--sm">
+              <option value="480:55:10" data-i18n="live.quality.low">Low (saves bandwidth)</option>
+              <option value="900:70:15" selected data-i18n="live.quality.medium">Medium</option>
+              <option value="1600:85:20" data-i18n="live.quality.high">High</option>
+            </select>
+          </div>
+
+          <label class="switch">
+            <input type="checkbox" id="live-overlay" checked>
+            <span class="switch__track"><span class="switch__thumb"></span></span>
+            <span data-i18n="live.overlay">Detection boxes</span>
+          </label>
+        </div>
+
+        <!-- One .camera-card per camera, created by js/views/live.js. -->
+        <div class="camera-grid" id="live-grid"></div>
+        <div class="empty-state" id="live-empty" hidden>
+          <h3 data-i18n="live.empty.title">No cameras registered</h3>
+          <p data-i18n="live.empty.body">Add cameras to config/cameras.yaml and restart the application.</p>
+        </div>
+      </section>
+
+      <!-- ============================================================
+           SCREEN: CALIBRATION
+           Freezes a frame and draws a line/zone over it with clicks.
+           ============================================================ -->
+      <section class="view" data-view="calibration">
+        <div class="panel panel--toolbar">
+          <div class="field">
+            <label for="calib-camera" data-i18n="calib.camera">Camera</label>
+            <select id="calib-camera" class="input"></select>
+          </div>
+
+          <div class="field">
+            <label for="calib-task" data-i18n="calib.task">Task</label>
+            <select id="calib-task" class="input"></select>
+          </div>
+
+          <div class="field" id="calib-zone-field" hidden>
+            <label for="calib-zone-name" data-i18n="calib.zone_name">Zone name</label>
+            <input type="text" id="calib-zone-name" class="input"
+                   data-i18n-placeholder="calib.zone_name_placeholder">
+          </div>
+
+          <div class="field" id="calib-class-field" hidden>
+            <label for="calib-expected-class" data-i18n="calib.expected_class">Expected class</label>
+            <input type="text" id="calib-expected-class" class="input"
+                   data-i18n-placeholder="calib.expected_class_placeholder">
+          </div>
+
+          <div class="field field--actions">
+            <button class="btn btn--primary" id="calib-capture" data-i18n="calib.capture">Capture frame</button>
+            <button class="btn" id="calib-undo" data-i18n="calib.undo">Undo point</button>
+            <button class="btn" id="calib-clear" data-i18n="calib.clear">Clear</button>
+            <button class="btn btn--accent" id="calib-save" disabled data-i18n="calib.save">Save geometry</button>
+          </div>
+        </div>
+
+        <p class="hint" id="calib-hint" data-i18n="calib.hint.start">Select a camera and a task, then capture a frame.</p>
+
+        <!--
+          The <canvas> is drawn at the frame's native resolution and only
+          shrunk by CSS. js/views/calibration.js converts the screen
+          click into native coordinates before sending it to the backend
+          — that is what makes the points line up with the pixels in
+          tasks.yaml.
+        -->
+        <div class="canvas-wrap" id="calib-canvas-wrap" hidden>
+          <canvas id="calib-canvas"></canvas>
+        </div>
+      </section>
+
+      <!-- ============================================================
+           SCREEN: SETTINGS
+           One card per task of the selected camera.
+           ============================================================ -->
+      <section class="view" data-view="settings">
+        <div class="panel panel--toolbar">
+          <div class="field">
+            <label for="settings-camera" data-i18n="settings.camera">Camera</label>
+            <select id="settings-camera" class="input"></select>
+          </div>
+
+          <div class="field">
+            <label for="settings-new-type" data-i18n="settings.new_task">New task</label>
+            <select id="settings-new-type" class="input"></select>
+          </div>
+
+          <div class="field field--actions">
+            <button class="btn btn--primary" id="settings-add" data-i18n="settings.add">Add task</button>
+            <button class="btn btn--accent" id="settings-apply"
+                    data-i18n="settings.apply" data-i18n-title="settings.apply_title">Apply now</button>
+          </div>
+        </div>
+
+        <div class="task-list" id="settings-tasks"></div>
+        <div class="empty-state" id="settings-empty" hidden>
+          <h3 data-i18n="settings.empty.title">No tasks on this camera</h3>
+          <p data-i18n="settings.empty.body">Cameras without tasks generate no inference pipeline.</p>
+        </div>
+      </section>
+
+      <!-- ============================================================
+           SCREEN: EMPLOYEES (face recognition)
+           ============================================================ -->
+      <section class="view" data-view="employees">
+        <div class="employees-layout">
+
+          <div class="panel">
+            <h2 class="panel__title" data-i18n="emp.enroll_title">Enroll employee</h2>
+            <p class="panel__hint" data-i18n="emp.enroll_hint">
+              Capture the face with a camera or upload a photo.
+            </p>
+
+            <div class="preview" id="emp-preview">
+              <span class="preview__placeholder" data-i18n="emp.no_image">No image selected</span>
+              <img id="emp-preview-img" alt="" hidden>
+            </div>
+
+            <div class="field">
+              <label for="emp-camera" data-i18n="emp.capture_from">Capture from camera</label>
+              <div class="field--actions">
+                <select id="emp-camera" class="input"></select>
+                <button class="btn" id="emp-capture" data-i18n="emp.capture">Capture</button>
+              </div>
+            </div>
+
+            <div class="field">
+              <label for="emp-file" data-i18n="emp.or_upload">Or upload a photo</label>
+              <input type="file" id="emp-file" class="input" accept="image/png,image/jpeg">
+            </div>
+
+            <div class="field">
+              <label for="emp-name" data-i18n="emp.name">Name</label>
+              <input type="text" id="emp-name" class="input" data-i18n-placeholder="emp.name_placeholder">
+            </div>
+
+            <button class="btn btn--primary btn--block" id="emp-enroll" data-i18n="emp.enroll">Enroll</button>
+          </div>
+
+          <div class="panel">
+            <h2 class="panel__title" data-i18n="emp.list_title">Enrolled employees</h2>
+            <div class="employee-list" id="emp-list"></div>
+            <div class="empty-state empty-state--sm" id="emp-empty" hidden>
+              <p data-i18n="emp.empty">Nobody enrolled yet.</p>
+            </div>
+          </div>
+
+        </div>
+      </section>
+
+    </div>
+  </main>
+
+  <!-- ================================================================
+       ALERTS PANEL — always visible, refreshed by polling
+       ================================================================ -->
+  <aside class="alerts" id="alerts-panel">
+    <header class="alerts__header">
+      <h2 data-i18n="alerts.title">Alerts</h2>
+      <div class="alerts__filters" id="alerts-filters">
+        <button class="chip is-active" data-severity="all" data-i18n="alerts.filter.all">All</button>
+        <button class="chip chip--critical" data-severity="critical" data-i18n="alerts.filter.critical">Critical</button>
+        <button class="chip chip--warning" data-severity="warning" data-i18n="alerts.filter.warning">Warnings</button>
+        <button class="chip chip--info" data-severity="info" data-i18n="alerts.filter.info">Info</button>
+      </div>
+    </header>
+
+    <!-- LLM narrator summary. Hidden when llm.enabled is false. -->
+    <div class="summary-card" id="summary-card" hidden>
+      <div class="summary-card__label">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+          <path d="m12 3 1.9 5.1L19 10l-5.1 1.9L12 17l-1.9-5.1L5 10l5.1-1.9z"/>
+        </svg>
+        <span data-i18n="alerts.summary_label">Summary (AI)</span>
+      </div>
+      <p class="summary-card__text" id="summary-text" data-i18n="alerts.summary_waiting">Waiting for the first summary…</p>
+    </div>
+
+    <!-- The empty state comes BEFORE the list so it shows right under
+         the header; the list grows to fill the rest of the panel. -->
+    <div class="empty-state empty-state--sm" id="alerts-empty">
+      <p data-i18n="alerts.empty">No alerts yet.</p>
+    </div>
+    <div class="alerts__list" id="alerts-list"></div>
+  </aside>
+
+</div>
+
+<!-- Temporary notifications (success/error) — see js/ui.js. -->
+<div class="toasts" id="toasts"></div>
+
+<!--
+  type="module" gives native import/export in the browser; no bundler.
+  app.js is the only entry point — it imports everything else.
+-->
+<script type="module" src="/static/js/app.js"></script>
+</body>
+</html>

@@ -1,0 +1,89 @@
+/* ==========================================================================
+   theme.css — EVERY design value in one place.
+
+   This is the file to edit first. Changing a variable here changes the
+   whole interface, because base.css and components.css never write a
+   literal color/measurement: they only reference var(--something).
+
+   Want a light theme? Duplicate the :root block, swap the --bg-* and
+   --text-* tones and that is it — no other file needs to change.
+   ========================================================================== */
+
+:root {
+  /* ---- Background colors, from deepest to most elevated --------------- */
+  --bg-base:      #0a0c10;   /* window background */
+  --bg-sunken:    #070a0e;   /* wells: video area, canvas */
+  --bg-surface:   #12161c;   /* cards, panels, sidebar */
+  --bg-raised:    #1a1f27;   /* elements on top of a card: inputs, chips */
+  --bg-hover:     #222834;   /* :hover state of clickable items */
+
+  /* ---- Borders and separators ----------------------------------------- */
+  --border:       #232a35;
+  --border-soft:  #1b212a;
+  --border-strong:#323b49;
+
+  /* ---- Text ------------------------------------------------------------ */
+  --text:         #e7ecf3;   /* primary text */
+  --text-muted:   #97a3b4;   /* labels, captions */
+  --text-faint:   #6b7688;   /* supporting text, placeholders */
+
+  /* ---- Accent color (the interface's identity) ------------------------ */
+  --accent:       #46d5c7;   /* cyan/turquoise: primary actions */
+  --accent-hover: #5ee6d8;
+  --accent-dim:   rgba(70, 213, 199, 0.12);
+  --accent-text:  #062723;   /* text ON TOP of the accent (high contrast) */
+
+  /* ---- Severities (the same ones in the Qt GUI's alerts_panel.py) ----- */
+  --critical:     #f2545b;
+  --critical-dim: rgba(242, 84, 91, 0.12);
+  --warning:      #f0a92b;
+  --warning-dim:  rgba(240, 169, 43, 0.12);
+  --info:         #4d9fe8;
+  --info-dim:     rgba(77, 159, 232, 0.12);
+  --success:      #43c98a;
+  --success-dim:  rgba(67, 201, 138, 0.12);
+
+  /* ---- Spacing (4px scale) -------------------------------------------- */
+  --sp-1: 4px;
+  --sp-2: 8px;
+  --sp-3: 12px;
+  --sp-4: 16px;
+  --sp-5: 24px;
+  --sp-6: 32px;
+  --sp-7: 48px;
+
+  /* ---- Corner radii ---------------------------------------------------- */
+  --radius-sm: 6px;
+  --radius:    10px;
+  --radius-lg: 14px;
+  --radius-pill: 999px;
+
+  /* ---- Shadows --------------------------------------------------------- */
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.4);
+  --shadow:    0 4px 16px rgba(0, 0, 0, 0.35);
+  --shadow-lg: 0 12px 40px rgba(0, 0, 0, 0.5);
+
+  /* ---- Typography ------------------------------------------------------ */
+  /* System font stack: nothing is downloaded, the interface opens
+     offline, and each OS uses the font it renders best. */
+  --font: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+          "Helvetica Neue", Arial, sans-serif;
+  --font-mono: "JetBrains Mono", "SF Mono", "Cascadia Code", Consolas,
+               "Liberation Mono", monospace;
+
+  --fs-xs:   11px;
+  --fs-sm:   12.5px;
+  --fs-base: 14px;
+  --fs-md:   15px;
+  --fs-lg:   18px;
+  --fs-xl:   22px;
+
+  /* ---- Layout dimensions ----------------------------------------------- */
+  --sidebar-w: 236px;
+  --alerts-w:  340px;
+  --topbar-h:  68px;
+
+  /* ---- Transitions ------------------------------------------------------ */
+  --t-fast: 120ms ease;
+  --t:      180ms ease;
+}

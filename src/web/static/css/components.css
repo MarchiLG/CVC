@@ -1,0 +1,532 @@
+/* ==========================================================================
+   components.css — the reusable pieces of the interface.
+
+   Organized bottom-up: form controls first, then buttons/chips, then the
+   larger blocks of each screen. Every color and measurement comes from
+   theme.css.
+   ========================================================================== */
+
+/* ==========================================================================
+   FORMS
+   ========================================================================== */
+.field { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+
+.field > label {
+  font-size: var(--fs-xs);
+  font-weight: 500;
+  color: var(--text-faint);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.field--inline { flex-direction: row; align-items: center; gap: var(--sp-2); }
+.field--inline > label { text-transform: none; letter-spacing: 0; font-size: var(--fs-sm); }
+
+/* Button row — used inside .field to group actions. */
+.field--actions { flex-direction: row; align-items: center; gap: var(--sp-2); flex-wrap: wrap; }
+
+.input {
+  padding: 8px 11px;
+  background: var(--bg-raised);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  color: var(--text);
+  font-size: var(--fs-base);
+  transition: border-color var(--t-fast), box-shadow var(--t-fast);
+  min-width: 0;
+}
+.input:hover { border-color: var(--border-strong); }
+.input:focus {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-dim);
+}
+.input::placeholder { color: var(--text-faint); }
+.input--sm { padding: 5px 9px; font-size: var(--fs-sm); }
+
+/* The <select> arrow drawn as inline SVG (no external image). */
+select.input {
+  appearance: none;
+  padding-right: 30px;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12'%3E%3Cpath d='M3 4.5 6 8l3-3.5' stroke='%2397a3b4' stroke-width='1.4' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 9px center;
+  background-size: 12px;
+  cursor: pointer;
+}
+
+input[type="file"].input { padding: 6px 9px; font-size: var(--fs-sm); cursor: pointer; }
+input[type="file"].input::file-selector-button {
+  margin-right: var(--sp-3);
+  padding: 4px 10px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--bg-hover);
+  color: var(--text-muted);
+  cursor: pointer;
+}
+
+/* ---- Switch (styled checkbox) ------------------------------------------ */
+.switch { display: inline-flex; align-items: center; gap: var(--sp-2); cursor: pointer; font-size: var(--fs-sm); color: var(--text-muted); }
+.switch input { position: absolute; opacity: 0; pointer-events: none; }
+
+.switch__track {
+  width: 34px; height: 19px;
+  padding: 2px;
+  border-radius: var(--radius-pill);
+  background: var(--bg-hover);
+  border: 1px solid var(--border);
+  transition: background var(--t), border-color var(--t);
+  flex-shrink: 0;
+}
+.switch__thumb {
+  display: block;
+  width: 13px; height: 13px;
+  border-radius: 50%;
+  background: var(--text-faint);
+  transition: transform var(--t), background var(--t);
+}
+.switch input:checked + .switch__track { background: var(--accent-dim); border-color: var(--accent); }
+.switch input:checked + .switch__track .switch__thumb { transform: translateX(15px); background: var(--accent); }
+.switch input:focus-visible + .switch__track { box-shadow: 0 0 0 3px var(--accent-dim); }
+
+/* ==========================================================================
+   BUTTONS
+   ========================================================================== */
+.btn {
+  display: inline-flex; align-items: center; justify-content: center; gap: 7px;
+  padding: 8px 14px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--bg-raised);
+  color: var(--text);
+  font-size: var(--fs-sm);
+  font-weight: 500;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: background var(--t-fast), border-color var(--t-fast), color var(--t-fast), transform var(--t-fast);
+}
+.btn svg { width: 16px; height: 16px; }
+.btn:hover:not(:disabled) { background: var(--bg-hover); border-color: var(--border-strong); }
+.btn:active:not(:disabled) { transform: translateY(1px); }
+.btn:disabled { opacity: 0.45; cursor: not-allowed; }
+.btn:focus-visible { outline: none; box-shadow: 0 0 0 3px var(--accent-dim); }
+
+/* Primary action of the screen. */
+.btn--primary { background: var(--accent); border-color: var(--accent); color: var(--accent-text); }
+.btn--primary:hover:not(:disabled) { background: var(--accent-hover); border-color: var(--accent-hover); }
+
+/* Highlighted secondary action (outlined in the accent color). */
+.btn--accent { border-color: var(--accent); color: var(--accent); background: transparent; }
+.btn--accent:hover:not(:disabled) { background: var(--accent-dim); }
+
+/* Destructive action. */
+.btn--danger { border-color: transparent; color: var(--critical); background: var(--critical-dim); }
+.btn--danger:hover:not(:disabled) { background: var(--critical); color: #fff; }
+
+/* Icon only, no frame. */
+.btn--ghost { background: transparent; border-color: transparent; color: var(--text-muted); padding: 8px; position: relative; }
+.btn--ghost:hover { background: var(--bg-hover); color: var(--text); }
+
+.btn--sm { padding: 5px 10px; font-size: var(--fs-xs); }
+.btn--block { width: 100%; }
+
+/* ==========================================================================
+   BADGES, CHIPS AND PILLS
+   ========================================================================== */
+.badge {
+  display: inline-flex; align-items: center; gap: 5px;
+  padding: 2px 8px;
+  border-radius: var(--radius-pill);
+  font-size: var(--fs-xs);
+  font-weight: 500;
+  background: var(--bg-hover);
+  color: var(--text-muted);
+}
+
+.badge--critical { background: var(--critical-dim); color: var(--critical); }
+.badge--warning  { background: var(--warning-dim);  color: var(--warning); }
+.badge--info     { background: var(--info-dim);     color: var(--info); }
+.badge--accent   { background: var(--accent-dim);   color: var(--accent); }
+
+/* Counter over the alerts bell. */
+.badge--count {
+  position: absolute; top: 0; right: 0;
+  min-width: 17px; height: 17px;
+  padding: 0 4px;
+  justify-content: center;
+  background: var(--critical); color: #fff;
+  font-size: 10px; font-weight: 600;
+  border: 2px solid var(--bg-base);
+}
+
+/* Filters of the alerts panel. */
+.chip {
+  padding: 4px 10px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-pill);
+  background: transparent;
+  color: var(--text-faint);
+  font-size: var(--fs-xs);
+  cursor: pointer;
+  transition: all var(--t-fast);
+}
+.chip:hover { border-color: var(--border-strong); color: var(--text-muted); }
+.chip.is-active { background: var(--bg-hover); border-color: var(--border-strong); color: var(--text); }
+.chip--critical.is-active { background: var(--critical-dim); border-color: var(--critical); color: var(--critical); }
+.chip--warning.is-active  { background: var(--warning-dim);  border-color: var(--warning);  color: var(--warning); }
+.chip--info.is-active     { background: var(--info-dim);     border-color: var(--info);     color: var(--info); }
+
+/* ==========================================================================
+   PANELS AND EMPTY STATES
+   ========================================================================== */
+.panel {
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: var(--sp-4);
+}
+
+.panel__title { font-size: var(--fs-md); font-weight: 600; margin-bottom: var(--sp-2); }
+.panel__hint { font-size: var(--fs-sm); color: var(--text-faint); margin-bottom: var(--sp-4); }
+
+/* Control bar at the top of a screen: side-by-side fields that wrap
+   onto several lines when the window narrows. */
+.panel--toolbar {
+  display: flex; flex-wrap: wrap; align-items: flex-end; gap: var(--sp-4);
+  margin-bottom: var(--sp-4);
+}
+.panel--toolbar .field { flex: 1 1 180px; }
+.panel--toolbar .field--actions { flex: 0 0 auto; }
+
+.hint { font-size: var(--fs-sm); color: var(--text-faint); margin-bottom: var(--sp-4); }
+
+.empty-state {
+  text-align: center;
+  padding: var(--sp-7) var(--sp-4);
+  color: var(--text-faint);
+  border: 1px dashed var(--border);
+  border-radius: var(--radius-lg);
+}
+.empty-state h3 { font-size: var(--fs-md); color: var(--text-muted); margin-bottom: var(--sp-2); }
+.empty-state p { font-size: var(--fs-sm); max-width: 46ch; margin: 0 auto; }
+.empty-state--sm { padding: var(--sp-5) var(--sp-3); border: none; }
+
+/* ==========================================================================
+   "LIVE" SCREEN
+   ========================================================================== */
+.live-toolbar {
+  display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-5);
+  margin-bottom: var(--sp-4);
+}
+
+/* auto-fit + minmax = as many columns as fit, with no media query.
+   auto-FIT (rather than auto-fill) collapses the empty columns, so with
+   2 cameras the two cards split the full width instead of being squeezed
+   to the left. The JS overrides grid-template-columns when the user pins
+   a column count in the toolbar. */
+.camera-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(380px, 1fr));
+  gap: var(--sp-4);
+}
+
+.camera-card {
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  transition: border-color var(--t), box-shadow var(--t);
+}
+.camera-card:hover { border-color: var(--border-strong); box-shadow: var(--shadow); }
+
+.camera-card__header {
+  display: flex; align-items: center; gap: var(--sp-2);
+  padding: var(--sp-3) var(--sp-4);
+  border-bottom: 1px solid var(--border-soft);
+}
+.camera-card__name { font-weight: 600; font-size: var(--fs-base); flex: 1; min-width: 0;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.camera-card__id { font-family: var(--font-mono); font-size: var(--fs-xs); color: var(--text-faint); }
+
+/* Video area: a fixed 16:9 ratio so the grid does not "jump" while
+   frames arrive at different sizes. */
+.camera-card__video {
+  position: relative;
+  aspect-ratio: 16 / 9;
+  background: var(--bg-sunken);
+  display: grid; place-items: center;
+  cursor: zoom-in;
+}
+.camera-card__video img { width: 100%; height: 100%; object-fit: contain; }
+
+.camera-card__footer {
+  display: flex; align-items: center; gap: var(--sp-2); flex-wrap: wrap;
+  padding: var(--sp-2) var(--sp-4);
+  border-top: 1px solid var(--border-soft);
+  min-height: 38px;
+  font-size: var(--fs-xs);
+  color: var(--text-faint);
+}
+
+/* "Live" indicator: a dot that pulses while the camera responds. */
+.live-dot {
+  width: 7px; height: 7px; border-radius: 50%;
+  background: var(--text-faint);
+  flex-shrink: 0;
+}
+.live-dot.is-live { background: var(--success); animation: pulse 2s ease-in-out infinite; }
+.live-dot.is-down { background: var(--critical); }
+
+@keyframes pulse {
+  0%, 100% { box-shadow: 0 0 0 0 var(--success-dim); }
+  50%      { box-shadow: 0 0 0 5px transparent; }
+}
+
+/* Lightbox: clicking a card opens the camera full screen. */
+.lightbox {
+  position: fixed; inset: 0; z-index: 60;
+  display: grid; place-items: center;
+  padding: var(--sp-5);
+  background: rgba(3, 5, 8, 0.9);
+  backdrop-filter: blur(4px);
+  cursor: zoom-out;
+}
+.lightbox img { max-width: 100%; max-height: 90vh; border-radius: var(--radius); box-shadow: var(--shadow-lg); }
+.lightbox__caption {
+  position: absolute; top: var(--sp-5); left: 50%; transform: translateX(-50%);
+  font-size: var(--fs-sm); color: var(--text-muted);
+}
+
+/* ==========================================================================
+   "CALIBRATION" SCREEN
+   ========================================================================== */
+.canvas-wrap {
+  background: var(--bg-sunken);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: var(--sp-3);
+  overflow: auto;      /* large frames scroll instead of overflowing */
+  max-height: calc(100vh - 320px);
+}
+
+/* The canvas carries the frame's NATIVE resolution in its width/height
+   attributes and is only SHRUNK by CSS — the coordinate conversion lives
+   in js/views/calibration.js. */
+#calib-canvas {
+  max-width: 100%;
+  height: auto;
+  cursor: crosshair;
+  border-radius: var(--radius-sm);
+  margin: 0 auto;
+}
+
+/* ==========================================================================
+   "SETTINGS" SCREEN
+   ========================================================================== */
+.task-list { display: flex; flex-direction: column; gap: var(--sp-3); }
+
+.task-card {
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+}
+
+.task-card__header {
+  display: flex; align-items: center; gap: var(--sp-3); flex-wrap: wrap;
+  padding: var(--sp-3) var(--sp-4);
+  background: var(--bg-raised);
+  border-bottom: 1px solid var(--border-soft);
+}
+.task-card__type { font-family: var(--font-mono); font-size: var(--fs-base); font-weight: 500; }
+.task-card__spacer { flex: 1; }
+
+.task-card__body {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: var(--sp-4);
+  padding: var(--sp-4);
+}
+
+/* Flags block inside a task-card. */
+.flag-list {
+  grid-column: 1 / -1;
+  display: flex; flex-direction: column; gap: var(--sp-2);
+  padding-top: var(--sp-3);
+  border-top: 1px solid var(--border-soft);
+}
+.flag-list__title { font-size: var(--fs-xs); text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-faint); }
+
+.flag-row {
+  display: grid;
+  grid-template-columns: minmax(120px, 1.4fr) auto minmax(110px, 0.8fr) minmax(150px, 1.2fr);
+  align-items: center;
+  gap: var(--sp-3);
+  padding: var(--sp-2) var(--sp-3);
+  background: var(--bg-raised);
+  border: 1px solid var(--border-soft);
+  border-radius: var(--radius-sm);
+}
+.flag-row__id { font-family: var(--font-mono); font-size: var(--fs-sm); }
+
+@media (max-width: 900px) {
+  .flag-row { grid-template-columns: 1fr; }
+}
+
+/* Footer of the task-card, holding the save action. */
+.task-card__footer {
+  display: flex; align-items: center; gap: var(--sp-2); flex-wrap: wrap;
+  padding: var(--sp-3) var(--sp-4);
+  border-top: 1px solid var(--border-soft);
+  background: var(--bg-raised);
+}
+.task-card__note { font-size: var(--fs-xs); color: var(--text-faint); flex: 1; min-width: 160px; }
+
+/* Notice inside a card (e.g. an uncalibrated task, which does not run). */
+.notice {
+  grid-column: 1 / -1;
+  padding: var(--sp-3);
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border);
+  font-size: var(--fs-sm);
+  line-height: 1.5;
+}
+.notice--warning { background: var(--warning-dim); border-color: var(--warning); color: var(--warning); }
+.notice--info    { background: var(--info-dim);    border-color: var(--info);    color: var(--info); }
+
+/* Read-only listing of the params that have no dedicated editor. */
+.params-preview {
+  grid-column: 1 / -1;
+  font-family: var(--font-mono);
+  font-size: var(--fs-xs);
+  color: var(--text-faint);
+  background: var(--bg-sunken);
+  border: 1px solid var(--border-soft);
+  border-radius: var(--radius-sm);
+  padding: var(--sp-3);
+  white-space: pre-wrap;
+  word-break: break-word;
+  max-height: 160px;
+  overflow: auto;
+}
+
+/* ==========================================================================
+   "EMPLOYEES" SCREEN
+   ========================================================================== */
+.employees-layout {
+  display: grid;
+  grid-template-columns: minmax(300px, 380px) minmax(0, 1fr);
+  gap: var(--sp-4);
+  align-items: start;
+}
+@media (max-width: 900px) { .employees-layout { grid-template-columns: 1fr; } }
+
+.employees-layout .panel { display: flex; flex-direction: column; gap: var(--sp-4); }
+
+.preview {
+  position: relative;
+  aspect-ratio: 4 / 3;
+  background: var(--bg-sunken);
+  border: 1px solid var(--border-soft);
+  border-radius: var(--radius);
+  display: grid; place-items: center;
+  overflow: hidden;
+}
+.preview__placeholder { font-size: var(--fs-sm); color: var(--text-faint); }
+.preview img { width: 100%; height: 100%; object-fit: contain; }
+
+.employee-list { display: flex; flex-direction: column; gap: var(--sp-2); }
+
+.employee-row {
+  display: flex; align-items: center; gap: var(--sp-3);
+  padding: var(--sp-3);
+  background: var(--bg-raised);
+  border: 1px solid var(--border-soft);
+  border-radius: var(--radius-sm);
+}
+.employee-row__avatar {
+  width: 34px; height: 34px; flex-shrink: 0;
+  display: grid; place-items: center;
+  border-radius: 50%;
+  background: var(--accent-dim); color: var(--accent);
+  font-weight: 600; font-size: var(--fs-sm);
+}
+.employee-row__name { flex: 1; font-weight: 500; min-width: 0;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.employee-row__meta { font-size: var(--fs-xs); color: var(--text-faint); font-family: var(--font-mono); }
+
+/* ==========================================================================
+   ALERTS PANEL
+   ========================================================================== */
+.summary-card {
+  margin: var(--sp-3) var(--sp-3) 0;
+  padding: var(--sp-3);
+  background: var(--accent-dim);
+  border: 1px solid rgba(70, 213, 199, 0.22);
+  border-radius: var(--radius);
+}
+.summary-card__label {
+  display: flex; align-items: center; gap: 6px;
+  font-size: var(--fs-xs); font-weight: 600;
+  text-transform: uppercase; letter-spacing: 0.05em;
+  color: var(--accent);
+  margin-bottom: 6px;
+}
+.summary-card__label svg { width: 13px; height: 13px; }
+.summary-card__text { font-size: var(--fs-sm); color: var(--text-muted); line-height: 1.55; }
+
+.alert-item {
+  padding: var(--sp-3);
+  background: var(--bg-raised);
+  border: 1px solid var(--border-soft);
+  border-left: 3px solid var(--text-faint);
+  border-radius: var(--radius-sm);
+  animation: alert-in 220ms ease;
+}
+.alert-item--critical { border-left-color: var(--critical); }
+.alert-item--warning  { border-left-color: var(--warning); }
+.alert-item--info     { border-left-color: var(--info); }
+
+@keyframes alert-in {
+  from { opacity: 0; transform: translateX(8px); }
+  to   { opacity: 1; transform: none; }
+}
+
+.alert-item__top {
+  display: flex; align-items: center; gap: var(--sp-2);
+  margin-bottom: 5px;
+}
+.alert-item__camera { font-size: var(--fs-xs); font-weight: 600; color: var(--text-muted); }
+.alert-item__time { margin-left: auto; font-size: var(--fs-xs); color: var(--text-faint); font-family: var(--font-mono); }
+.alert-item__message { font-size: var(--fs-sm); color: var(--text); line-height: 1.45; }
+.alert-item__task { font-size: var(--fs-xs); color: var(--text-faint); font-family: var(--font-mono); margin-top: 4px; }
+
+/* ==========================================================================
+   TOASTS (temporary notices at the bottom)
+   ========================================================================== */
+.toasts {
+  position: fixed; bottom: var(--sp-5); left: 50%; transform: translateX(-50%);
+  z-index: 80;
+  display: flex; flex-direction: column; gap: var(--sp-2);
+  pointer-events: none;
+}
+
+.toast {
+  display: flex; align-items: center; gap: var(--sp-2);
+  padding: 10px var(--sp-4);
+  background: var(--bg-raised);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-lg);
+  font-size: var(--fs-sm);
+  animation: toast-in 220ms cubic-bezier(0.2, 0.9, 0.3, 1.2);
+  max-width: min(520px, 90vw);
+}
+.toast.is-leaving { animation: toast-out 180ms ease forwards; }
+
+.toast--success { border-color: var(--success); color: var(--success); }
+.toast--error   { border-color: var(--critical); color: var(--critical); }
+
+@keyframes toast-in  { from { opacity: 0; transform: translateY(12px) scale(0.97); } to { opacity: 1; transform: none; } }
+@keyframes toast-out { to   { opacity: 0; transform: translateY(8px); } }

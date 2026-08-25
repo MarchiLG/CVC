@@ -1,0 +1,223 @@
+/* ==========================================================================
+   base.css — reset, typography and the SHELL LAYOUT (the three columns).
+
+   Only the page's macro structure lives here: sidebar, main area and
+   alerts panel. The elements inside them (buttons, cards, tables) are in
+   components.css.
+   ========================================================================== */
+
+/* ---- Lean reset -------------------------------------------------------- */
+*, *::before, *::after { box-sizing: border-box; }
+
+body, h1, h2, h3, p, figure { margin: 0; }
+
+button, input, select, textarea { font: inherit; color: inherit; }
+
+img, svg, canvas { display: block; max-width: 100%; }
+
+/* The HTML `hidden` attribute must beat any display set here. Without
+   this rule, the line above (`img { display: block }`) would override the
+   browser's `display: none` and an <img hidden> would show up as a broken
+   image icon. It applies to everything the JS shows/hides with
+   setVisible() (see js/ui.js). */
+[hidden] { display: none !important; }
+
+body {
+  font-family: var(--font);
+  font-size: var(--fs-base);
+  line-height: 1.5;
+  color: var(--text);
+  background: var(--bg-base);
+  -webkit-font-smoothing: antialiased;
+
+  /* A UI ocupa a janela inteira; o scroll acontece dentro das colunas. */
+  height: 100vh;
+  overflow: hidden;
+}
+
+code {
+  font-family: var(--font-mono);
+  font-size: 0.92em;
+  background: var(--bg-raised);
+  border: 1px solid var(--border-soft);
+  border-radius: var(--radius-sm);
+  padding: 1px 5px;
+}
+
+/* Discreet scrollbars, in the interface's tone. */
+::-webkit-scrollbar { width: 10px; height: 10px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb {
+  background: var(--border-strong);
+  border-radius: var(--radius-pill);
+  border: 3px solid transparent;
+  background-clip: content-box;
+}
+::-webkit-scrollbar-thumb:hover { background-clip: content-box; background-color: var(--text-faint); }
+
+/* ==========================================================================
+   SHELL — three columns: [sidebar | main | alerts]
+   ========================================================================== */
+.app-shell {
+  display: grid;
+  grid-template-columns: var(--sidebar-w) minmax(0, 1fr) var(--alerts-w);
+  height: 100vh;
+}
+
+/* Class toggled by the bell button in the header (see js/app.js). */
+.app-shell.alerts-hidden { grid-template-columns: var(--sidebar-w) minmax(0, 1fr) 0; }
+.app-shell.alerts-hidden .alerts { display: none; }
+
+/* On narrow screens the alerts become a strip at the bottom. */
+@media (max-width: 1200px) {
+  .app-shell { grid-template-columns: var(--sidebar-w) minmax(0, 1fr); grid-template-rows: 1fr auto; }
+  .alerts { grid-column: 1 / -1; max-height: 38vh; border-left: none; border-top: 1px solid var(--border); }
+}
+
+/* ---- Column 1: sidebar ------------------------------------------------- */
+.sidebar {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-5);
+  padding: var(--sp-5) var(--sp-4);
+  background: var(--bg-surface);
+  border-right: 1px solid var(--border);
+  overflow-y: auto;
+}
+
+.sidebar__brand { display: flex; align-items: center; gap: var(--sp-3); }
+
+.sidebar__logo {
+  width: 36px; height: 36px;
+  display: grid; place-items: center;
+  border-radius: var(--radius);
+  background: var(--accent-dim);
+  color: var(--accent);
+  flex-shrink: 0;
+}
+.sidebar__logo svg { width: 20px; height: 20px; }
+
+.sidebar__title { display: flex; flex-direction: column; min-width: 0; }
+.sidebar__title strong { font-size: var(--fs-md); letter-spacing: -0.01em; }
+.sidebar__title span {
+  font-size: var(--fs-xs);
+  color: var(--text-faint);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+
+.nav { display: flex; flex-direction: column; gap: 2px; }
+
+.nav__item {
+  display: flex; align-items: center; gap: var(--sp-3);
+  width: 100%;
+  padding: 9px var(--sp-3);
+  border: none;
+  border-radius: var(--radius);
+  background: transparent;
+  color: var(--text-muted);
+  font-size: var(--fs-base);
+  text-align: left;
+  cursor: pointer;
+  transition: background var(--t-fast), color var(--t-fast);
+}
+.nav__item svg { width: 18px; height: 18px; flex-shrink: 0; }
+.nav__item:hover { background: var(--bg-hover); color: var(--text); }
+
+.nav__item.is-active {
+  background: var(--accent-dim);
+  color: var(--accent);
+  font-weight: 500;
+}
+
+/* System status, pinned to the sidebar footer. */
+.sidebar__status {
+  margin-top: auto;
+  padding-top: var(--sp-4);
+  border-top: 1px solid var(--border-soft);
+  display: flex; flex-direction: column; gap: 6px;
+  font-size: var(--fs-xs);
+}
+
+.status-row { display: flex; justify-content: space-between; gap: var(--sp-2); }
+.status-row span { color: var(--text-faint); }
+.status-row b { color: var(--text-muted); font-weight: 500; font-family: var(--font-mono); }
+
+.status-row--conn { align-items: center; justify-content: flex-start; margin-top: var(--sp-1); }
+.status-row--conn span:last-child { color: var(--text-faint); }
+
+/* Language picker, above the status rows. */
+.sidebar__language { margin-bottom: var(--sp-2); }
+.sidebar__language label { flex-shrink: 0; }
+.sidebar__language select { flex: 1; min-width: 0; }
+
+/* Status dot: green while polling answers, red when it drops. */
+.dot {
+  width: 7px; height: 7px; border-radius: 50%;
+  background: var(--text-faint);
+  flex-shrink: 0;
+  transition: background var(--t), box-shadow var(--t);
+}
+.dot.is-online  { background: var(--success); box-shadow: 0 0 0 3px var(--success-dim); }
+.dot.is-offline { background: var(--critical); box-shadow: 0 0 0 3px var(--critical-dim); }
+
+/* ---- Column 2: main area ----------------------------------------------- */
+.main {
+  display: flex; flex-direction: column;
+  min-width: 0;          /* let content shrink instead of overflowing */
+  overflow: hidden;
+}
+
+.topbar {
+  display: flex; align-items: center; justify-content: space-between; gap: var(--sp-4);
+  height: var(--topbar-h);
+  padding: 0 var(--sp-5);
+  border-bottom: 1px solid var(--border);
+  background: var(--bg-base);
+  flex-shrink: 0;
+}
+
+.topbar__title { font-size: var(--fs-xl); font-weight: 600; letter-spacing: -0.02em; }
+.topbar__subtitle { font-size: var(--fs-sm); color: var(--text-faint); }
+
+.topbar__actions { display: flex; align-items: center; gap: var(--sp-3); }
+.topbar__slot { display: flex; align-items: center; gap: var(--sp-2); }
+
+.content { flex: 1; overflow-y: auto; padding: var(--sp-5); }
+
+/* Only the <section.view> with .is-active is visible (swapped in js/app.js). */
+.view { display: none; }
+.view.is-active { display: block; animation: view-in 200ms ease; }
+
+@keyframes view-in {
+  from { opacity: 0; transform: translateY(4px); }
+  to   { opacity: 1; transform: none; }
+}
+
+/* ---- Column 3: alerts panel -------------------------------------------- */
+.alerts {
+  display: flex; flex-direction: column;
+  background: var(--bg-surface);
+  border-left: 1px solid var(--border);
+  overflow: hidden;
+}
+
+.alerts__header {
+  padding: var(--sp-4) var(--sp-4) var(--sp-3);
+  border-bottom: 1px solid var(--border-soft);
+  flex-shrink: 0;
+}
+.alerts__header h2 { font-size: var(--fs-md); font-weight: 600; margin-bottom: var(--sp-3); }
+
+.alerts__filters { display: flex; flex-wrap: wrap; gap: var(--sp-1); }
+
+.alerts__list {
+  flex: 1;
+  overflow-y: auto;
+  padding: var(--sp-2) var(--sp-3) var(--sp-4);
+  display: flex; flex-direction: column; gap: var(--sp-2);
+}
+
+/* Respect users who turned animations off at the OS level. */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; }
+}
