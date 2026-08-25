@@ -1,20 +1,20 @@
 """
 inference_engine.py
 
-Uma única thread de background que percorre (round-robin) as câmeras
-com pipeline atribuído, lê o frame mais recente via
-CameraManager.get_frame() e roda o CameraPipeline de cada uma,
-publicando o resultado em um ResultsStore.
+A single background thread that walks (round-robin) the cameras that
+have a pipeline assigned, reads the most recent frame through
+CameraManager.get_frame() and runs each camera's CameraPipeline,
+publishing the result into a ResultsStore.
 
-De propósito, não há uma thread de inferência por câmera: um único
-modelo YOLO carregado é compartilhado entre câmeras (fase 2), e
-inferência dentro de cada thread de captura degradaria a própria
-captura (ver seção "Threading/process model" do plano). O throttle por
-câmera (detect_fps, via fps_by_camera) é o que torna essa thread única
-viável para várias câmeras.
+There is deliberately no inference thread per camera: one loaded YOLO
+model is shared across cameras, and running inference inside each
+capture thread would degrade capture itself (see the "Threading/process
+model" section of the plan). The per-camera throttle (detect_fps, via
+fps_by_camera) is what makes this single thread viable for several
+cameras.
 
-run_once() executa uma única passada de forma síncrona e determinística
-— usado tanto pelo loop de background quanto pelos testes.
+run_once() performs a single pass synchronously and deterministically —
+used both by the background loop and by the tests.
 """
 
 import threading
@@ -61,8 +61,8 @@ class InferenceEngine:
             time.sleep(0.01)
 
     def run_once(self, now: float | None = None) -> list[str]:
-        """Roda uma passada round-robin sobre as câmeras, respeitando o
-        throttle por câmera. Retorna os ids processados nesta passada."""
+        """Runs one round-robin pass over the cameras, honoring the
+        per-camera throttle. Returns the ids processed in this pass."""
         now = time.time() if now is None else now
         processed = []
 

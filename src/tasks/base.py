@@ -1,9 +1,9 @@
 """
 base.py
 
-Contrato comum para analisadores de tarefa: recebem o frame e as
-detecções/rastreios mais recentes de uma câmera e retornam os Flags
-que devem ser emitidos, se houver.
+Common contract for task analyzers: they receive the frame and the most
+recent detections/tracks of a camera and return the Flags that should
+be emitted, if any.
 """
 
 from abc import ABC, abstractmethod

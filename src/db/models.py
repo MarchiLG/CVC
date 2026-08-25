@@ -1,10 +1,10 @@
 """
 models.py
 
-Modelos SQLAlchemy: funcionários e seus embeddings faciais (para
-reconhecimento por foto — ver tasks/face_id.py), log de eventos
-(Flags persistidos, opcional via notify/notifiers/db_notifier.py) e
-log de narrações (fase 6, resumos do LLM local).
+SQLAlchemy models: employees and their face embeddings (for photo-based
+recognition — see tasks/face_id.py), the event log (persisted Flags,
+optional through notify/notifiers/db_notifier.py) and the narration log
+(summaries from the local LLM).
 """
 
 import time
@@ -30,10 +30,10 @@ class Employee(Base):
 
 
 class FaceEmbedding(Base):
-    """Vetor facial (float32) serializado como bytes — buscas de
-    similaridade são feitas em Python (ver db/repository.py), sem
-    depender de extensão de vetor no SQLite; adequado ao volume de
-    funcionários esperado (dezenas a poucas centenas)."""
+    """Face vector (float32) serialized as bytes — similarity searches
+    happen in Python (see db/repository.py), without depending on a
+    vector extension in SQLite; adequate for the expected number of
+    employees (tens to a few hundred)."""
 
     __tablename__ = "face_embeddings"
 

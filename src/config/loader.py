@@ -1,9 +1,9 @@
 """
 loader.py
 
-Carrega e valida cameras.yaml, tasks.yaml e app.yaml. Referências
-"${VAR}" dentro dos arquivos YAML são expandidas contra variáveis de
-ambiente (carregadas de um .env via python-dotenv, se presente).
+Loads and validates cameras.yaml, tasks.yaml and app.yaml. "${VAR}"
+references inside the YAML files are expanded against environment
+variables (loaded from a .env through python-dotenv, if present).
 """
 
 import os
@@ -20,8 +20,11 @@ from .schema import (
     LlmSettings,
     NotifySettings,
     TaskConfig,
+    UiSettings,
     VisionSettings,
 )
+
+SUPPORTED_LANGUAGES = ("en", "pt")
 
 _ENV_VAR_PATTERN = re.compile(r"\$\{([A-Za-z_][A-Za-z0-9_]*)\}")
 
@@ -29,7 +32,7 @@ _dotenv_loaded = False
 
 
 class ConfigError(Exception):
-    """Erro de configuração: arquivo malformado ou variável de ambiente ausente."""
+    """Configuration error: malformed file or missing environment variable."""
 
 
 def _ensure_dotenv_loaded():
@@ -40,7 +43,7 @@ def _ensure_dotenv_loaded():
 
 
 def expand_env(value):
-    """Expande "${VAR}" recursivamente em strings, listas e dicts."""
+    """Expands "${VAR}" recursively in strings, lists and dicts."""
     _ensure_dotenv_loaded()
 
     if isinstance(value, str):
@@ -49,8 +52,8 @@ def expand_env(value):
             resolved = os.environ.get(var_name)
             if resolved is None:
                 raise ConfigError(
-                    f"Variável de ambiente '{var_name}' não definida "
-                    f"(referenciada como '${{{var_name}}}' na configuração)."
+                    f"Environment variable '{var_name}' is not defined "
+                    f"(referenced as '${{{var_name}}}' in the configuration)."
                 )
             return resolved
 
@@ -84,7 +87,7 @@ def load_cameras_config(path: str) -> list[CameraConfig]:
                 )
             )
         except KeyError as exc:
-            raise ConfigError(f"Câmera com campo obrigatório ausente: {exc} em {entry!r}") from exc
+            raise ConfigError(f"Camera missing a required field: {exc} in {entry!r}") from exc
     return cameras
 
 
@@ -100,7 +103,7 @@ def _load_flag(entry) -> FlagConfig:
 
 
 def load_tasks_config(path: str) -> dict[str, list[TaskConfig]]:
-    """Retorna { camera_id: [TaskConfig, ...] }. Arquivo ausente -> dict vazio."""
+    """Returns { camera_id: [TaskConfig, ...] }. Missing file -> empty dict."""
     if not os.path.exists(path):
         return {}
 
@@ -123,7 +126,7 @@ def load_tasks_config(path: str) -> dict[str, list[TaskConfig]]:
 
 
 def load_app_config(path: str) -> AppSettings:
-    """Retorna AppSettings. Arquivo ausente -> valores padrão."""
+    """Returns AppSettings. Missing file -> default values."""
     if not os.path.exists(path):
         return AppSettings()
 
@@ -132,6 +135,7 @@ def load_app_config(path: str) -> AppSettings:
     db_raw = raw.get("db", {})
     llm_raw = raw.get("llm", {})
     notify_raw = raw.get("notify", {}).get("desktop", {})
+    ui_raw = raw.get("ui", {})
 
     return AppSettings(
         vision=VisionSettings(
@@ -151,4 +155,14 @@ def load_app_config(path: str) -> AppSettings:
         notify=NotifySettings(
             desktop_enabled=notify_raw.get("enabled", True),
         ),
+        ui=UiSettings(
+            language=_normalize_language(ui_raw.get("language", "en")),
+        ),
     )
+
+
+def _normalize_language(value) -> str:
+    """Falls back to English on anything unrecognized, so a typo in
+    app.yaml degrades into the default instead of breaking startup."""
+    language = str(value or "").strip().lower()
+    return language if language in SUPPORTED_LANGUAGES else "en"

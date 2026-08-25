@@ -60,7 +60,7 @@ def test_run_once_skips_when_no_new_flags_since_last_summary(tmp_path):
     result = narrator.run_once()  # nothing new since the last summary
 
     assert result is None
-    assert len(client.calls) == 1  # a segunda chamada não deveria ter acontecido
+    assert len(client.calls) == 1  # the second call should not have happened
 
 
 def test_run_once_generates_again_when_newer_flag_arrives(tmp_path):

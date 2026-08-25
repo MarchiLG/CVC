@@ -1,19 +1,19 @@
 """
 face_id.py
 
-Reconhecimento facial: roda o InsightFace (independente do detector
-YOLO da pipeline — o frame bruto já vem disponível na assinatura de
-TaskAnalyzer.analyze) sobre o frame, e para cada rosto busca o
-funcionário mais parecido no banco (db/repository.find_best_match).
-Se ninguém bater acima do limiar e log_unknown estiver ativo, emite o
-Flag "unknown_face".
+Face recognition: runs InsightFace over the frame (independently of the
+pipeline's YOLO detector — the raw frame is already available in the
+TaskAnalyzer.analyze signature) and, for each face, looks up the
+closest matching employee in the database
+(db/repository.find_best_match). If nobody matches above the threshold
+and log_unknown is on, emits the "unknown_face" Flag.
 
-params esperados em tasks.yaml:
-    match_threshold: float (default 0.45)
-    log_unknown: bool (default true)
-    device: "auto" | "cpu" | "cuda" (default "auto")
-    model_pack: override do pacote InsightFace (opcional; senão usa o
-        padrão do device — buffalo_l/buffalo_s)
+params expected in tasks.yaml:
+    match_threshold: float (defaults to 0.45)
+    log_unknown: bool (defaults to true)
+    device: "auto" | "cpu" | "cuda" (defaults to "auto")
+    model_pack: override for the InsightFace pack (optional; otherwise
+        uses the device default — buffalo_l/buffalo_s)
 """
 
 from notify.flag import Flag
@@ -62,8 +62,10 @@ class FaceIDAnalyzer(TaskAnalyzer):
                     task_type=self.type,
                     flag_id="unknown_face",
                     severity=flag_config.severity,
-                    message=f"Rosto não reconhecido (similaridade {score:.2f})",
+                    message=f"Unrecognized face (similarity {score:.2f})",
                     notify=flag_config.notify,
+                    message_key="flag.unknown_face",
+                    message_params={"score": f"{score:.2f}"},
                 ))
         finally:
             session.close()

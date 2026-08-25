@@ -1,19 +1,30 @@
-# Ajustes globais da aplicação. Todos os campos são opcionais — o que
-# não for definido aqui usa o padrão em config/schema.py.
+# Global application settings. Every field is optional — anything not
+# defined here falls back to the default in config/schema.py.
+
+ui:
+  # Interface language: en | pt (English is the default).
+  #
+  # This sets the language of the desktop GUI (./run.sh) and of the LLM
+  # narrator summaries. The web interface (./run-html.sh) starts in this
+  # language too, but there a picker in the sidebar overrides it per
+  # browser — no restart needed.
+  #
+  # The wording of both interfaces lives in a single catalog, src/i18n.py.
+  language: en
 
 vision:
   device: cuda  # auto | cpu | cuda
 
 db:
-  enabled: false  # true persiste os Flags também em event_log (ver notify/notifiers/db_notifier.py)
+  enabled: false  # true also persists Flags into event_log (see notify/notifiers/db_notifier.py)
   url: sqlite:///data/app.db
 
 llm:
-  # Desativado por padrão: requer o serviço Ollama rodando localmente
-  # (`ollama serve`) com o modelo abaixo já baixado (`ollama pull
-  # qwen2.5:1.5b`). Sem isso, o narrador falha de forma silenciosa a
-  # cada ciclo e só registra um aviso no log — ver llm/ollama_client.py.
-  # Ligue (enabled: true) depois de instalar/rodar o Ollama.
+  # Disabled by default: requires the Ollama service running locally
+  # (`ollama serve`) with the model below already pulled (`ollama pull
+  # qwen2.5:1.5b`). Without it the narrator fails quietly on every cycle
+  # and only logs a warning — see llm/ollama_client.py.
+  # Turn it on (enabled: true) after installing/running Ollama.
   enabled: false
   model: qwen2.5:1.5b
   interval_seconds: 60

@@ -1,18 +1,19 @@
 """
 treadmill_counter.py
 
-Conta itens que cruzam uma linha configurada (counting_line), usando o
-track_id para não contar o mesmo item duas vezes enquanto ele
-atravessa o quadro. Opcionalmente emite o Flag "count_threshold" se a
-contagem numa janela de tempo ficar abaixo do mínimo esperado — sinal
-de possível parada/entupimento na esteira.
+Counts items crossing a configured line (counting_line), using the
+track_id so the same item is not counted twice while it moves across
+the frame. Optionally emits the "count_threshold" Flag when the count
+within a time window falls below the expected minimum — a sign of a
+possible stoppage/jam on the conveyor.
 
-params esperados em tasks.yaml:
+params expected in tasks.yaml:
     counting_line: {p1: [x, y], p2: [x, y]}
-    direction: "positive" | "negative" | "any"  (lado do cruzamento que
-        conta — ver geometry.line_side; default "any")
-    target_classes: [nomes de classe]  (opcional; default conta qualquer classe)
-    min_count_per_window / window_seconds  (opcional; ativa o flag count_threshold)
+    direction: "positive" | "negative" | "any"  (which crossing side
+        counts — see geometry.line_side; defaults to "any")
+    target_classes: [class names]  (optional; by default counts any class)
+    min_count_per_window / window_seconds  (optional; enables the
+        count_threshold flag)
 """
 
 import time
@@ -100,9 +101,16 @@ class ItemCountingAnalyzer(TaskAnalyzer):
             flag_id="count_threshold",
             severity=flag_config.severity,
             message=(
-                f"Contagem abaixo do esperado: {len(self._crossing_times)}/"
-                f"{self.min_count_per_window} nos últimos {self.window_seconds:.0f}s "
-                f"(total acumulado: {self.count})"
+                f"Count below expected: {len(self._crossing_times)}/"
+                f"{self.min_count_per_window} in the last {self.window_seconds:.0f}s "
+                f"(running total: {self.count})"
             ),
             notify=flag_config.notify,
+            message_key="flag.count_below_threshold",
+            message_params={
+                "count": len(self._crossing_times),
+                "expected": self.min_count_per_window,
+                "seconds": f"{self.window_seconds:.0f}",
+                "total": self.count,
+            },
         )]

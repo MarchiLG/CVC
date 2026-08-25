@@ -1,11 +1,11 @@
 """
 ollama_client.py
 
-Wrapper fino sobre o cliente Python do Ollama. Ollama é um serviço
-local externo — não uma dependência pip que "só funciona" — então
-generate() falha de forma silenciosa (loga e retorna None) em vez de
-derrubar o resto da aplicação se o serviço não estiver rodando. Ver
-README para como instalar/rodar o Ollama.
+Thin wrapper over the Ollama Python client. Ollama is an external local
+service — not a pip dependency that "just works" — so generate() fails
+quietly (logs and returns None) instead of taking down the rest of the
+application when the service is not running. See the README for how to
+install/run Ollama.
 """
 
 import logging
@@ -31,7 +31,7 @@ class OllamaClient:
             response = self._client.generate(model=self.model, prompt=prompt)
         except Exception:
             logger.warning(
-                "Falha ao chamar Ollama (modelo=%s) — verifique se o serviço está rodando (`ollama serve`).",
+                "Failed to call Ollama (model=%s) — check that the service is running (`ollama serve`).",
                 self.model, exc_info=True,
             )
             return None

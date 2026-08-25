@@ -1,10 +1,9 @@
 """
 tasks
 
-Pacote de TaskAnalyzers. Importar este pacote registra todas as
-tarefas embutidas (ver registry.py) — quem monta os pipelines só
-precisa de `import tasks` para que os tipos fiquem disponíveis para uso
-em tasks.yaml.
+Package of TaskAnalyzers. Importing this package registers every
+built-in task (see registry.py) — whoever assembles the pipelines only
+needs `import tasks` for the types to become usable in tasks.yaml.
 """
 
 from . import missing_product, ppe_compliance, treadmill_counter  # noqa: F401
@@ -12,5 +11,5 @@ from . import missing_product, ppe_compliance, treadmill_counter  # noqa: F401
 try:
     from . import face_id  # noqa: F401
 except ImportError:
-    pass  # insightface/onnxruntime não instalados — face_id fica indisponível,
-    # o resto da aplicação continua funcionando normalmente.
+    pass  # insightface/onnxruntime not installed — face_id becomes
+    # unavailable, the rest of the application keeps working normally.

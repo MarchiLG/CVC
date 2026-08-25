@@ -1,11 +1,10 @@
 """
 writer.py
 
-Escrita de tasks.yaml preservando comentários/formatação (via
-ruamel.yaml, modo round-trip) — usado pelas telas de calibração e
-configurações da GUI (fase 4), que editam parâmetros de tarefas
-existentes ou adicionam/removem tarefas sem reescrever o arquivo do
-zero como yaml.safe_dump faria.
+Writes tasks.yaml preserving comments/formatting (via ruamel.yaml in
+round-trip mode) — used by the calibration and settings screens of both
+interfaces, which edit parameters of existing tasks or add/remove tasks
+without rewriting the file from scratch the way yaml.safe_dump would.
 """
 
 import os

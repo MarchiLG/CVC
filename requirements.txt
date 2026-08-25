@@ -3,41 +3,52 @@ PyYAML
 python-dotenv
 pytest
 
-# Detecção e rastreamento (fase 2). O pacote torch abaixo instala a
-# variante CPU por padrão via PyPI. Em uma máquina com GPU NVIDIA,
-# instale a variante CUDA ANTES do resto do requirements.txt seguindo
-# https://pytorch.org/get-started/locally/ (o comando exato depende da
-# versão do CUDA instalada) — a detecção de device em vision/device.py
-# é automática em tempo de execução, mas o wheel certo ainda precisa
-# ser instalado por máquina.
+# Detection and tracking. The torch package below installs the CPU
+# variant by default from PyPI. On a machine with an NVIDIA GPU, install
+# the CUDA variant BEFORE the rest of requirements.txt, following
+# https://pytorch.org/get-started/locally/ (the exact command depends on
+# the installed CUDA version) — device detection in vision/device.py is
+# automatic at runtime, but the right wheel still has to be installed per
+# machine.
 torch
 torchvision
 ultralytics
 
-# Notificações desktop (fase 3)
+# Desktop notifications
 plyer
 
-# GUI (fase 4) — substitui Tkinter/Pillow como interface principal.
-# ruamel.yaml preserva comentários/formatação de tasks.yaml ao salvar
-# a partir das telas de calibração/configurações.
+# Desktop GUI — the native interface, no browser (./run.sh).
+# ruamel.yaml preserves the comments/formatting of tasks.yaml when
+# saving from the calibration/settings screens, in BOTH interfaces.
 PySide6
 ruamel.yaml
 
-# Reconhecimento facial + banco de funcionários (fase 5).
-# onnxruntime abaixo instala a variante CPU. Em uma máquina com GPU
-# NVIDIA, use `pip install onnxruntime-gpu` no lugar (os dois pacotes
-# são mutuamente exclusivos — instale apenas um). O código em
-# vision/face/recognizer.py já escolhe o provider certo em tempo de
-# execução a partir do que estiver instalado; só o pacote muda por
-# máquina, igual ao caso do torch/CUDA acima.
+# Web interface (./run-html.sh) — serves the HTML/CSS/JS UI from
+# src/web/static/ and exposes the backend as a REST API + MJPEG
+# streaming. Just three lightweight packages (nothing compiled): the web
+# UI does NOT need PySide6, so on a headless server you can drop the
+# PySide6 line above and run the web version alone.
+# python-multipart is required by FastAPI to receive the photo upload on
+# the employee enrollment screen.
+fastapi
+uvicorn
+python-multipart
+
+# Face recognition + employee database.
+# onnxruntime below installs the CPU variant. On a machine with an
+# NVIDIA GPU, use `pip install onnxruntime-gpu` instead (the two packages
+# are mutually exclusive — install only one). The code in
+# vision/face/recognizer.py already picks the right provider at runtime
+# from whatever is installed; only the package changes per machine, just
+# like the torch/CUDA case above.
 numpy
 SQLAlchemy
 onnxruntime
 insightface
 
-# Narrador de alertas via LLM local (fase 6). O pacote "ollama" aqui é
-# só o cliente Python — o serviço Ollama em si é um pré-requisito
-# externo (não instalado via pip), ver README. Sem o serviço rodando,
-# o narrador falha de forma silenciosa e simplesmente não gera
-# resumos (ver llm/ollama_client.py).
+# Alert narrator through a local LLM. The "ollama" package here is only
+# the Python client — the Ollama service itself is an external
+# prerequisite (not installed through pip), see the README. Without the
+# service running, the narrator fails quietly and simply produces no
+# summaries (see llm/ollama_client.py).
 ollama

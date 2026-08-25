@@ -1,10 +1,9 @@
 """
 registry.py
 
-Mapeia o campo "type" de uma TaskConfig para a classe TaskAnalyzer
-correspondente. Tarefas concretas (contagem de itens, EPI, produto
-ausente, reconhecimento facial, ...) se registram aqui com @register
-nas fases seguintes.
+Maps the "type" field of a TaskConfig to the corresponding TaskAnalyzer
+class. Concrete tasks (item counting, PPE, missing product, face
+recognition, ...) register themselves here with @register.
 """
 
 from config.schema import TaskConfig
@@ -25,7 +24,7 @@ def register(task_type: str):
 def create(task_type: str, camera_id: str, config: TaskConfig) -> TaskAnalyzer:
     cls = _REGISTRY.get(task_type)
     if cls is None:
-        raise ValueError(f"Tipo de tarefa desconhecido: '{task_type}'")
+        raise ValueError(f"Unknown task type: '{task_type}'")
     return cls(camera_id, config)
 
 

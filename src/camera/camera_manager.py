@@ -1,10 +1,10 @@
 """
 camera_manager.py
 
-Carrega o cadastro de câmeras (config/cameras.yaml) e orquestra o
-ciclo de vida de todas elas, expondo uma interface simples para a GUI:
-listar câmeras, iniciar/parar todas, e obter o frame mais recente de
-uma câmera específica pelo seu id.
+Loads the camera registry (config/cameras.yaml) and orchestrates the
+lifecycle of all of them, exposing a simple surface to the user
+interfaces: list cameras, start/stop all of them, and get the most
+recent frame of a specific camera by its id.
 """
 
 from config.loader import load_cameras_config
@@ -38,7 +38,7 @@ class CameraManager:
             camera.stop()
 
     def list_cameras(self):
-        """Lista de (id, nome) para popular o menu da GUI, na ordem cadastrada."""
+        """List of (id, name) to populate the interface menus, in registration order."""
         return [(cam.camera_id, cam.name) for cam in self.cameras.values()]
 
     def get_frame(self, camera_id: str):

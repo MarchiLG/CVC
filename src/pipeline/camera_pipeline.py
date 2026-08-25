@@ -1,14 +1,14 @@
 """
 camera_pipeline.py
 
-Compõe, para UMA câmera, a cadeia: detector -> tracker -> analisadores
-de tarefa -> FlagManager. Cada CameraPipeline é construído a partir das
-TaskConfig atribuídas àquela câmera em tasks.yaml.
+Composes, for ONE camera, the chain: detector -> tracker -> task
+analyzers -> FlagManager. Each CameraPipeline is built from the
+TaskConfig entries assigned to that camera in tasks.yaml.
 
-Por padrão, detect_fn/track_fn são passthroughs sem inferência real —
-a fase 2 substitui esses parâmetros pelo Detector/Tracker de verdade
-(vision/detector.py, vision/tracker.py) sem precisar alterar esta
-classe.
+By default, detect_fn/track_fn are passthroughs without real inference
+— the builder replaces these parameters with the actual
+Detector/Tracker (vision/detector.py, vision/tracker.py) without this
+class having to change.
 """
 
 from config.schema import TaskConfig

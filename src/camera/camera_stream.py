@@ -1,14 +1,14 @@
 """
 camera_stream.py
 
-Encapsula a captura contínua de UMA câmera IP em uma thread dedicada,
-mantendo sempre o frame mais recente disponível para consulta — sem
-bloquear quem estiver lendo (a GUI, por exemplo) enquanto a rede/câmera
-responde.
+Wraps the continuous capture of ONE IP camera in a dedicated thread,
+always keeping the most recent frame available for reading — without
+blocking the reader (a user interface, for example) while the
+network/camera responds.
 
-Nada além da captura é feito aqui de propósito: o ponto de extensão para
-processamento (detecção, gravação, inferência do seu modelo, etc.) está
-marcado com "TODO" dentro de _capture_loop.
+Nothing beyond capture happens here on purpose: the extension point for
+processing (detection, recording, running your own model, etc.) is
+marked with "TODO" inside _capture_loop.
 """
 
 import threading
@@ -18,7 +18,7 @@ import cv2
 
 
 class CameraStream:
-    """Representa uma câmera IP individual e sua thread de captura."""
+    """Represents a single IP camera and its capture thread."""
 
     def __init__(self, camera_id: str, name: str, url: str, reconnect_delay: float = 2.0):
         self.camera_id = camera_id
@@ -31,13 +31,13 @@ class CameraStream:
         self._running = False
         self._lock = threading.Lock()
 
-        # Equivalente ao "MOST_RECENT_FRAME" pedido, mas por câmera:
-        # cada CameraStream guarda o próprio último frame lido.
+        # Equivalent to the requested "MOST_RECENT_FRAME", but per camera:
+        # each CameraStream keeps its own last frame read.
         self.most_recent_frame = None  # numpy.ndarray | None
         self.is_connected = False
 
     # ------------------------------------------------------------------ #
-    # Controle da thread
+    # Thread control
     # ------------------------------------------------------------------ #
     def start(self):
         if self._running:
@@ -60,7 +60,7 @@ class CameraStream:
         self.is_connected = False
 
     # ------------------------------------------------------------------ #
-    # Loop principal de captura
+    # Main capture loop
     # ------------------------------------------------------------------ #
     def _capture_loop(self):
         while self._running:
@@ -84,20 +84,20 @@ class CameraStream:
             with self._lock:
                 self.most_recent_frame = frame
 
-            # TODO: ponto de extensão.
-            # As próximas funções (detecção de objetos, gravação em disco,
-            # inferência do seu modelo, etc.) devem ser plugadas a partir
-            # daqui — ou lendo get_frame() de fora desta thread, para não
-            # travar o loop de captura.
+            # TODO: extension point.
+            # Further stages (object detection, recording to disk,
+            # running your own model, etc.) should be plugged in from
+            # here — or by reading get_frame() from outside this thread,
+            # so the capture loop never stalls.
 
     def _connect(self):
         self._capture = cv2.VideoCapture(self.url)
 
     # ------------------------------------------------------------------ #
-    # Acesso externo (thread-safe)
+    # External access (thread-safe)
     # ------------------------------------------------------------------ #
     def get_frame(self):
-        """Retorna uma cópia do frame mais recente, ou None se ainda não houver."""
+        """Returns a copy of the most recent frame, or None if there is none yet."""
         with self._lock:
             if self.most_recent_frame is None:
                 return None

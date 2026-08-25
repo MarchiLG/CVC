@@ -2,14 +2,14 @@ from config.loader import load_tasks_config
 from config.writer import TasksYamlWriter
 
 SAMPLE = """\
-# comentário no topo do arquivo — deve sobreviver ao round-trip
+# comment at the top of the file - must survive the round-trip
 cameras:
   cam1:
     tasks:
       - type: item_counting
         detect_fps: 5
         params:
-          counting_line: {p1: [10, 0], p2: [10, 100]}  # comentário inline
+          counting_line: {p1: [10, 0], p2: [10, 100]}  # inline comment
         flags:
           - id: count_threshold
             enabled: true
@@ -26,8 +26,8 @@ def test_load_preserves_top_level_comment(tmp_path):
     writer.save()  # round-trip write-back with no changes
 
     content = path.read_text()
-    assert "comentário no topo do arquivo" in content
-    assert "comentário inline" in content
+    assert "comment at the top of the file" in content
+    assert "inline comment" in content
 
 
 def test_set_task_params_updates_only_that_field(tmp_path):

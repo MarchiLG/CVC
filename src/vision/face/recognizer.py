@@ -1,15 +1,15 @@
 """
 recognizer.py
 
-Wrapper sobre insightface.app.FaceAnalysis para detecção facial +
-extração de embedding. Providers do onnxruntime são escolhidos em
-tempo de execução (CUDA se disponível, senão CPU) — o mesmo código
-roda em qualquer hardware; só a instalação do pacote (onnxruntime vs
-onnxruntime-gpu) muda por máquina, ver requirements.txt.
+Wrapper over insightface.app.FaceAnalysis for face detection +
+embedding extraction. The onnxruntime providers are chosen at runtime
+(CUDA when available, CPU otherwise) — the same code runs on any
+hardware; only the installed package (onnxruntime vs onnxruntime-gpu)
+changes per machine, see requirements.txt.
 
-get_face_recognizer() mantém um cache por model_pack (buffalo_l/
-buffalo_s/...), já que carregar os modelos do InsightFace é custoso —
-mesmo padrão de ModelRegistry usado para o YOLO.
+get_face_recognizer() keeps a cache per model_pack (buffalo_l/
+buffalo_s/...), since loading the InsightFace models is expensive — the
+same pattern as the ModelRegistry used for YOLO.
 """
 
 import threading
@@ -38,8 +38,9 @@ class FaceRecognizer:
         self._app.prepare(ctx_id=ctx_id, det_size=det_size)
 
     def analyze(self, frame):
-        """Retorna a lista de rostos detectados (objetos insightface.Face,
-        cada um com .bbox, .embedding — 512d já normalizado — e .det_score)."""
+        """Returns the list of detected faces (insightface.Face objects,
+        each with .bbox, .embedding — 512d, already normalized — and
+        .det_score)."""
         return self._app.get(frame)
 
 

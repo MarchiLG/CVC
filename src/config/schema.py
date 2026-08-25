@@ -1,9 +1,9 @@
 """
 schema.py
 
-Estruturas de dados para as três fontes de configuração da aplicação:
-cameras.yaml (cadastro de câmeras), tasks.yaml (tarefas de visão por
-câmera) e app.yaml (ajustes globais).
+Data structures for the three configuration sources of the
+application: cameras.yaml (camera registry), tasks.yaml (vision tasks
+per camera) and app.yaml (global settings).
 """
 
 from dataclasses import dataclass, field
@@ -27,11 +27,11 @@ class FlagConfig:
 
 @dataclass
 class TaskConfig:
-    """Uma tarefa de visão computacional atribuída a uma câmera.
+    """A computer vision task assigned to a camera.
 
-    `params` fica como dict livre porque cada TaskAnalyzer (contador de
-    itens, EPI, produto ausente, reconhecimento facial, ...) define seu
-    próprio formato de parâmetros — ver tasks/base.py.
+    `params` is left as a free-form dict because each TaskAnalyzer (item
+    counter, PPE, missing product, face recognition, ...) defines its own
+    parameter format — see tasks/base.py.
     """
 
     type: str
@@ -67,8 +67,22 @@ class NotifySettings:
 
 
 @dataclass
+class UiSettings:
+    """Interface language.
+
+    English is the default. It sets the language of the desktop GUI and
+    of the LLM narrator summaries, and it is the language the web
+    interface starts in — there, the picker in the sidebar overrides it
+    per browser (see web/static/js/i18n.js).
+    """
+
+    language: str = "en"  # "en" | "pt"
+
+
+@dataclass
 class AppSettings:
     vision: VisionSettings = field(default_factory=VisionSettings)
     db: DbSettings = field(default_factory=DbSettings)
     llm: LlmSettings = field(default_factory=LlmSettings)
     notify: NotifySettings = field(default_factory=NotifySettings)
+    ui: UiSettings = field(default_factory=UiSettings)

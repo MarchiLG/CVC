@@ -1,8 +1,8 @@
 """
 device.py
 
-Detecção do dispositivo de inferência (CPU/CUDA) e escolha do tamanho
-de modelo padrão para cada um, com override manual via app.yaml
+Detects the inference device (CPU/CUDA) and picks the default model
+size for each, with a manual override through app.yaml
 (vision.device / vision.model_size_override).
 """
 
@@ -27,7 +27,7 @@ def resolve_device(preferred: str = "auto") -> str:
     if preferred == "cuda":
         if torch.cuda.is_available():
             return "cuda"
-        logger.warning("vision.device='cuda' solicitado mas CUDA não está disponível; usando CPU.")
+        logger.warning("vision.device='cuda' requested but CUDA is not available; falling back to CPU.")
         return "cpu"
     if preferred == "cpu":
         return "cpu"

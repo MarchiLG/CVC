@@ -1,10 +1,10 @@
 """
 repository.py
 
-Operações de CRUD sobre funcionários/embeddings faciais e persistência
-de eventos (Flags). A busca do funcionário mais parecido é feita em
-Python via similaridade de cosseno — ver nota em models.py sobre por
-que não usamos uma extensão de vetor no SQLite aqui.
+CRUD operations over employees/face embeddings and persistence of
+events (Flags). Finding the closest matching employee happens in Python
+through cosine similarity — see the note in models.py about why no
+SQLite vector extension is used here.
 """
 
 import numpy as np
@@ -45,9 +45,9 @@ def _cosine_similarity(a: np.ndarray, b: np.ndarray) -> float:
 
 
 def find_best_match(session: Session, embedding, threshold: float = 0.45):
-    """Retorna (Employee, similaridade) do funcionário mais parecido
-    acima do limiar, ou (None, melhor_similaridade) se ninguém bater
-    (ou não houver funcionários cadastrados)."""
+    """Returns (Employee, similarity) for the closest matching employee
+    above the threshold, or (None, best_similarity) when nobody matches
+    (or no employees are enrolled)."""
     query_vec = np.asarray(embedding, dtype=np.float32)
 
     best_employee = None

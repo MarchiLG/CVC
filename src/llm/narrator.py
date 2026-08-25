@@ -1,17 +1,17 @@
 """
 narrator.py
 
-AlertNarrator: roda numa thread de background própria, periodicamente
-agrupa os Flags mais recentes do FlagManager e pede ao Ollama um
-resumo em linguagem natural, salvo em NarrationLog e disponível para a
-GUI (aba de alertas) via latest_summary().
+AlertNarrator: runs on its own background thread, periodically groups
+the most recent Flags from the FlagManager and asks Ollama for a
+natural-language summary, which is stored in NarrationLog and made
+available to the interfaces (alerts panel) through latest_summary().
 
-Camada só de "narração" — não decide nada nem gera novos Flags; se o
-Ollama não estiver disponível, OllamaClient.generate() falha de forma
-silenciosa e run_once() simplesmente não produz um resumo novo.
+This is a pure "narration" layer — it decides nothing and generates no
+new Flags; if Ollama is unavailable, OllamaClient.generate() fails
+quietly and run_once() simply produces no new summary.
 
-run_once() é síncrono e determinístico — usado tanto pelo loop de
-background quanto por testes.
+run_once() is synchronous and deterministic — used both by the
+background loop and by tests.
 """
 
 import threading
@@ -25,20 +25,34 @@ from .ollama_client import OllamaClient
 _DEFAULT_INTERVAL_SECONDS = 60.0
 _DEFAULT_MAX_FLAGS = 20
 
-_PROMPT_HEADER = (
-    "Você é um assistente que resume alertas de um sistema de monitoramento "
-    "por câmeras para um operador humano. Resuma os alertas abaixo em "
-    "português, de forma breve (2-4 frases), destacando padrões ou os "
-    "alertas mais graves. Não invente informação além do que está listado."
-)
+# The summary is written in the language configured in app.yaml ->
+# ui.language, so it matches the rest of the interface. Only the prompt
+# changes; everything else about the narrator is language-agnostic.
+_PROMPT_HEADERS = {
+    "en": (
+        "You are an assistant that summarizes alerts from a camera "
+        "monitoring system for a human operator. Summarize the alerts "
+        "below in English, briefly (2-4 sentences), highlighting patterns "
+        "or the most severe alerts. Do not invent information beyond what "
+        "is listed."
+    ),
+    "pt": (
+        "Você é um assistente que resume alertas de um sistema de monitoramento "
+        "por câmeras para um operador humano. Resuma os alertas abaixo em "
+        "português, de forma breve (2-4 frases), destacando padrões ou os "
+        "alertas mais graves. Não invente informação além do que está listado."
+    ),
+}
+_DEFAULT_LANGUAGE = "en"
 
 
-def _build_prompt(flags) -> str:
+def _build_prompt(flags, language: str = _DEFAULT_LANGUAGE) -> str:
+    header = _PROMPT_HEADERS.get(language, _PROMPT_HEADERS[_DEFAULT_LANGUAGE])
     lines = [
-        f"- [{flag.severity}] câmera {flag.camera_id}, tarefa {flag.task_type}: {flag.message}"
+        f"- [{flag.severity}] camera {flag.camera_id}, task {flag.task_type}: {flag.message}"
         for flag in flags
     ]
-    return _PROMPT_HEADER + "\n\n" + "\n".join(lines)
+    return header + "\n\n" + "\n".join(lines)
 
 
 class AlertNarrator:
@@ -49,11 +63,13 @@ class AlertNarrator:
         interval_seconds: float = _DEFAULT_INTERVAL_SECONDS,
         max_flags_per_summary: int = _DEFAULT_MAX_FLAGS,
         client: OllamaClient | None = None,
+        language: str = _DEFAULT_LANGUAGE,
     ):
         self.flag_manager = flag_manager
         self.interval_seconds = interval_seconds
         self.max_flags_per_summary = max_flags_per_summary
         self.client = client or OllamaClient(model=model)
+        self.language = language
 
         self._running = False
         self._thread = None
@@ -80,7 +96,7 @@ class AlertNarrator:
     def _loop(self):
         while self._running:
             self.run_once()
-            # dorme em passos curtos para reagir rápido a stop()
+            # Sleep in short steps so stop() is honored quickly.
             remaining = self.interval_seconds
             while self._running and remaining > 0:
                 step = min(0.2, remaining)
@@ -88,20 +104,21 @@ class AlertNarrator:
                 remaining -= step
 
     def run_once(self) -> str | None:
-        """Gera (e persiste) um resumo a partir dos Flags recentes, se
-        houver algo mais novo do que o último resumo já gerado. Retorna
-        o texto gerado, ou None se não havia novidade ou o Ollama falhou."""
+        """Generates (and persists) a summary from the recent Flags, if
+        there is anything newer than the last summary already produced.
+        Returns the generated text, or None when there was nothing new or
+        Ollama failed."""
         flags = self.flag_manager.recent(limit=self.max_flags_per_summary)
         if not flags:
             return None
 
         newest_timestamp = max(flag.timestamp for flag in flags)
         if newest_timestamp <= self._last_summarized_timestamp:
-            return None  # nada novo desde o último resumo
+            return None  # nothing new since the last summary
 
-        summary = self.client.generate(_build_prompt(flags))
+        summary = self.client.generate(_build_prompt(flags, self.language))
         if summary is None:
-            return None  # Ollama falhou — tenta de novo no próximo ciclo
+            return None  # Ollama failed — try again on the next cycle
 
         self._last_summarized_timestamp = newest_timestamp
         with self._lock:

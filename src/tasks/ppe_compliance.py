@@ -1,20 +1,21 @@
 """
 ppe_compliance.py
 
-Para cada pessoa detectada dentro das zonas configuradas, verifica se
-os itens de EPI exigidos (required_ppe) também estão presentes
-sobrepondo a caixa da pessoa. Se algum item ficar faltando por mais de
-missing_ppe_dwell_seconds seguidos, emite o Flag "missing_ppe".
+For each person detected inside the configured zones, checks whether
+the required PPE items (required_ppe) are also present overlapping that
+person's box. If any item stays missing for longer than
+missing_ppe_dwell_seconds in a row, emits the "missing_ppe" Flag.
 
-Requer um modelo capaz de detectar as classes de EPI configuradas
-(ex.: helmet, vest) — um YOLO treinado em COCO não tem essas classes;
-atribua um modelo específico via "model" em tasks.yaml para esta tarefa.
+Requires a model able to detect the configured PPE classes (e.g.
+helmet, vest) — a YOLO trained on COCO does not have those classes;
+point "model" in tasks.yaml at a suitable checkpoint for this task.
 
-params esperados em tasks.yaml:
-    required_ppe: [nomes de classe do modelo, ex.: helmet, vest]
-    zones: [{name: str, polygon: [[x,y], ...]}]  (opcional; sem zonas = frame inteiro)
-    missing_ppe_dwell_seconds: float (default 30)
-    person_class: nome da classe "pessoa" no modelo (default "person")
+params expected in tasks.yaml:
+    required_ppe: [model class names, e.g. helmet, vest]
+    zones: [{name: str, polygon: [[x,y], ...]}]  (optional; no zones =
+        the whole frame)
+    missing_ppe_dwell_seconds: float (defaults to 30)
+    person_class: name of the "person" class in the model (defaults to "person")
 """
 
 import time
@@ -85,8 +86,13 @@ class PPEComplianceAnalyzer(TaskAnalyzer):
                 task_type=self.type,
                 flag_id="missing_ppe",
                 severity=flag_config.severity,
-                message=f"Pessoa #{person.track_id} sem: {', '.join(sorted(missing))}",
+                message=f"Person #{person.track_id} missing: {', '.join(sorted(missing))}",
                 notify=flag_config.notify,
+                message_key="flag.missing_ppe",
+                message_params={
+                    "track_id": person.track_id,
+                    "items": ", ".join(sorted(missing)),
+                },
             ))
 
         self._state = {

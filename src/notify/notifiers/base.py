@@ -1,7 +1,7 @@
 """
 base.py
 
-Interface comum para canais de notificação (log, desktop, etc.).
+Common interface for notification channels (log, desktop, etc.).
 """
 
 from abc import ABC, abstractmethod

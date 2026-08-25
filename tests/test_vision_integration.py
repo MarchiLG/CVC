@@ -21,7 +21,7 @@ from pipeline.results_store import ResultsStore
 from vision.model_registry import ModelRegistry
 
 # Importar o pacote "tasks" registra os TaskAnalyzers reais (fase 3) —
-# usamos o item_counting real abaixo, não mais um stand-in.
+# the real item_counting is used below, no longer a stand-in.
 import tasks  # noqa: F401,E402
 
 

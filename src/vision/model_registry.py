@@ -1,10 +1,10 @@
 """
 model_registry.py
 
-Cache de instâncias YOLO carregadas, chaveado por (caminho do modelo,
-device). Câmeras diferentes que usam o mesmo modelo compartilham a
-mesma instância — evita recarregar pesos e duplicar memória por
-câmera (ver "Threading/process model" no plano de arquitetura).
+Cache of loaded YOLO instances, keyed by (model path, device). Cameras
+using the same model share the same instance — this avoids reloading
+weights and duplicating memory per camera (see "Threading/process
+model" in the architecture plan).
 """
 
 import threading

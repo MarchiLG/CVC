@@ -1,9 +1,10 @@
 """
 types.py
 
-Estruturas de dados compartilhadas entre o detector, o tracker e os
-TaskAnalyzers: uma Detection é uma caixa delimitadora com classe e
-confiança; um Track é uma Detection com um id estável entre frames.
+Data structures shared between the detector, the tracker and the
+TaskAnalyzers: a Detection is a bounding box with a class and a
+confidence; a Track is a Detection with an id that stays stable across
+frames.
 """
 
 from dataclasses import dataclass

@@ -1,10 +1,9 @@
 """
 geometry.py
 
-Funções geométricas puras compartilhadas pelos TaskAnalyzers: centro
-de uma bbox, ponto dentro de polígono (zonas), sobreposição entre
-bboxes, e lado de um ponto em relação a uma linha (usado para
-contagem por cruzamento de linha).
+Pure geometric helpers shared by the TaskAnalyzers: center of a bbox,
+point-in-polygon (zones), overlap between bboxes, and which side of a
+line a point falls on (used for line-crossing counting).
 """
 
 
@@ -14,7 +13,7 @@ def bbox_center(bbox: tuple[float, float, float, float]) -> tuple[float, float]:
 
 
 def point_in_polygon(point: tuple[float, float], polygon: list) -> bool:
-    """Ray casting. polygon: lista de (x, y) com pelo menos 3 pontos."""
+    """Ray casting. polygon: list of (x, y) with at least 3 points."""
     x, y = point
     inside = False
     n = len(polygon)
@@ -29,9 +28,9 @@ def point_in_polygon(point: tuple[float, float], polygon: list) -> bool:
 
 
 def line_side(point: tuple[float, float], p1: tuple[float, float], p2: tuple[float, float]) -> int:
-    """Sinal do produto vetorial (p2-p1) x (point-p1): +1 de um lado da
-    linha, -1 do outro, 0 sobre a linha. Usado para detectar quando um
-    track cruza counting_line."""
+    """Sign of the cross product (p2-p1) x (point-p1): +1 on one side of
+    the line, -1 on the other, 0 on the line itself. Used to detect when
+    a track crosses counting_line."""
     x, y = point
     x1, y1 = p1
     x2, y2 = p2

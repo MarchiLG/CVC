@@ -1,16 +1,16 @@
 """
 missing_product.py
 
-Para cada zona configurada com uma classe esperada (expected_class),
-verifica se existe alguma detecção dessa classe com o centro dentro da
-zona. Se a zona ficar vazia por mais de absence_dwell_seconds
-seguidos, emite o Flag "missing_product". Usa "detections" (não
-"tracks") pois presença/ausência num slot não depende de rastrear um
-id específico entre frames.
+For each zone configured with an expected class (expected_class),
+checks whether there is any detection of that class whose center falls
+inside the zone. If the zone stays empty for longer than
+absence_dwell_seconds in a row, emits the "missing_product" Flag. It
+uses "detections" (not "tracks") because presence/absence in a slot
+does not depend on following a specific id across frames.
 
-params esperados em tasks.yaml:
+params expected in tasks.yaml:
     zones: [{name: str, polygon: [[x,y], ...], expected_class: str}]
-    absence_dwell_seconds: float (default 10)
+    absence_dwell_seconds: float (defaults to 10)
 """
 
 import time
@@ -67,8 +67,17 @@ class MissingProductAnalyzer(TaskAnalyzer):
                 task_type=self.type,
                 flag_id="missing_product",
                 severity=flag_config.severity,
-                message=f"Zona '{name}' sem '{expected_class}' há mais de {self.absence_seconds:.0f}s",
+                message=(
+                    f"Zone '{name}' without '{expected_class}' "
+                    f"for more than {self.absence_seconds:.0f}s"
+                ),
                 notify=flag_config.notify,
+                message_key="flag.missing_product",
+                message_params={
+                    "zone": name,
+                    "expected_class": expected_class,
+                    "seconds": f"{self.absence_seconds:.0f}",
+                },
             ))
 
         return flags

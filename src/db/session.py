@@ -1,16 +1,17 @@
 """
 session.py
 
-Engine/sessão do SQLAlchemy para o banco de funcionários e eventos. Um
-único engine por processo, configurado uma vez em init_db() (a partir
-de app.yaml -> db.url) e reutilizado por get_session() — mesmo padrão
-de singleton configurável usado em vision/model_registry.py.
+SQLAlchemy engine/session for the employees and events database. One
+engine per process, configured once in init_db() (from app.yaml ->
+db.url) and reused by get_session() — the same configurable-singleton
+pattern used in vision/model_registry.py.
 
-Sempre inicializado no startup da aplicação (main.py), independente do
-toggle app.yaml -> db.enabled: esse toggle controla apenas o canal de
-notificação "db" (persistência de Flags em EventLog, ver
-notify/notifiers/db_notifier.py) — o banco de funcionários/embeddings
-é infraestrutura básica para a tarefa face_id e a tela de cadastro.
+It is always initialized at application startup (bootstrap.py),
+regardless of the app.yaml -> db.enabled toggle: that toggle only
+controls the "db" notification channel (persisting Flags into EventLog,
+see notify/notifiers/db_notifier.py) — the employees/embeddings
+database is basic infrastructure for the face_id task and the
+enrollment screen.
 """
 
 import os

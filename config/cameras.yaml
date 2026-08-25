@@ -1,10 +1,11 @@
-# Configuração das câmeras IP registradas.
-# Ajuste id, name e url conforme os dados reais de cada câmera na sua rede.
-# A "url" pode ser um stream RTSP (mais comum em câmeras IP dedicadas)
-# ou uma URL HTTP/MJPEG, dependendo do fabricante.
+# Registry of the IP cameras.
+# Adjust id, name and url to match the real data of each camera on your
+# network. The "url" may be an RTSP stream (most common on dedicated IP
+# cameras) or an HTTP/MJPEG URL, depending on the manufacturer.
 #
-# Credenciais não ficam aqui: a url referencia uma variável de ambiente
-# (definida em .env, veja .env.example) e é expandida em tempo de carga.
+# Credentials do not live here: the url references an environment
+# variable (defined in .env, see .env.example) and is expanded at load
+# time.
 
 cameras:
   - id: "cam1"

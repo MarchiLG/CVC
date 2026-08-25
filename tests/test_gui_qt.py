@@ -2,6 +2,7 @@ import numpy as np
 from PySide6.QtCore import QPointF
 
 from config.loader import load_tasks_config
+from i18n import t
 from gui_qt.widgets.alerts_panel import AlertsPanel
 from gui_qt.widgets.calibration_view import CalibrationView
 from gui_qt.widgets.camera_grid import CameraGrid
@@ -65,7 +66,7 @@ def test_camera_tile_handles_no_frame_without_crashing(qapp):
 
     tile.update_frame(None, False, None)
 
-    assert "aguardando" in tile.status_label.text()
+    assert tile.status_label.text() == t("live.waiting")
 
 
 def test_camera_tile_renders_frame_with_overlays(qapp):
@@ -77,7 +78,7 @@ def test_camera_tile_renders_frame_with_overlays(qapp):
 
     tile.update_frame(frame, True, ([], [track]))
 
-    assert tile.status_label.text() == "conectada"
+    assert tile.status_label.text() == t("live.connected")
     assert not tile.video_label.pixmap().isNull()
 
 
@@ -104,18 +105,18 @@ def test_alerts_panel_shows_most_recent_flag_first(qapp):
 def test_alerts_panel_shows_narrator_summary(qapp):
     panel = AlertsPanel()
 
-    panel.update_summary("Resumo: 2 alertas de EPI ausente na câmera 1.")
+    panel.update_summary("Summary: 2 missing-PPE alerts on camera 1.")
 
-    assert panel.summary_text.toPlainText() == "Resumo: 2 alertas de EPI ausente na câmera 1."
+    assert panel.summary_text.toPlainText() == "Summary: 2 missing-PPE alerts on camera 1."
 
 
 def test_alerts_panel_ignores_none_summary(qapp):
     panel = AlertsPanel()
-    panel.update_summary("resumo existente")
+    panel.update_summary("existing summary")
 
-    panel.update_summary(None)  # narrator ainda não gerou nada novo neste ciclo
+    panel.update_summary(None)  # the narrator produced nothing new this cycle
 
-    assert panel.summary_text.toPlainText() == "resumo existente"
+    assert panel.summary_text.toPlainText() == "existing summary"
 
 
 # ---------------------------------------------------------------------- #
@@ -231,3 +232,13 @@ def test_settings_panel_save_flags_updates_flag_config(qapp, tmp_path, monkeypat
     flag = tasks_by_camera["cam1"][0].flags[0]
     assert flag.enabled is False
     assert flag.severity == "critical"
+
+
+def test_camera_tile_follows_the_configured_language(qapp):
+    """The desktop GUI renders in app.yaml -> ui.language, using the same
+    catalog as the web interface (src/i18n.py)."""
+    tile = CameraTile("cam1", "C1", language="pt")
+
+    tile.update_frame(None, True, None)
+
+    assert tile.status_label.text() == t("live.connected", "pt") == "conectada"

@@ -1,10 +1,10 @@
 """
 employee_enrollment.py
 
-Tela de cadastro de funcionários: captura o frame atual de uma câmera
-(ou carrega um arquivo de imagem), extrai o embedding facial via
-InsightFace (mesmo pacote de modelo do device — buffalo_l/buffalo_s,
-ver vision/device.py) e salva funcionário + embedding no banco.
+Employee enrollment screen: captures the current frame of a camera (or
+loads an image file), extracts the face embedding through InsightFace
+(the same model pack chosen for the device — buffalo_l/buffalo_s, see
+vision/device.py) and stores employee + embedding in the database.
 """
 
 import cv2
@@ -25,14 +25,16 @@ from PySide6.QtWidgets import (
 
 from db import repository
 from db.session import get_session
+from i18n import DEFAULT_LANGUAGE, t
 from vision.device import default_face_model_for_device, resolve_device
 from vision.face.recognizer import get_face_recognizer
 
 
 class EmployeeEnrollmentView(QWidget):
-    def __init__(self, camera_manager, parent=None):
+    def __init__(self, camera_manager, parent=None, language: str = DEFAULT_LANGUAGE):
         super().__init__(parent)
         self.camera_manager = camera_manager
+        self.language = language
         self._current_frame = None
         self._recognizer = None
 
@@ -42,14 +44,14 @@ class EmployeeEnrollmentView(QWidget):
         self.camera_combo = QComboBox()
         for camera_id, name in self.camera_manager.list_cameras():
             self.camera_combo.addItem(f"{name} ({camera_id})", camera_id)
-        controls.addWidget(QLabel("Câmera:"))
+        controls.addWidget(QLabel(t("calib.camera", language) + ":"))
         controls.addWidget(self.camera_combo)
 
-        capture_btn = QPushButton("Capturar da câmera")
+        capture_btn = QPushButton(t("emp.capture_from", language))
         capture_btn.clicked.connect(self._capture_from_camera)
         controls.addWidget(capture_btn)
 
-        upload_btn = QPushButton("Carregar foto...")
+        upload_btn = QPushButton(t("qt.load_photo", language))
         upload_btn.clicked.connect(self._load_from_file)
         controls.addWidget(upload_btn)
         layout.addLayout(controls)
@@ -60,20 +62,20 @@ class EmployeeEnrollmentView(QWidget):
         self.preview_label.setAlignment(Qt.AlignCenter)
         layout.addWidget(self.preview_label)
 
-        self.status_label = QLabel("Capture ou carregue uma foto com um rosto visível.")
+        self.status_label = QLabel(t("qt.enroll_hint", language))
         layout.addWidget(self.status_label)
 
         name_row = QHBoxLayout()
         self.name_edit = QLineEdit()
-        self.name_edit.setPlaceholderText("Nome do funcionário")
-        name_row.addWidget(QLabel("Nome:"))
+        self.name_edit.setPlaceholderText(t("emp.name_placeholder", language))
+        name_row.addWidget(QLabel(t("emp.name", language) + ":"))
         name_row.addWidget(self.name_edit)
-        enroll_btn = QPushButton("Cadastrar")
+        enroll_btn = QPushButton(t("emp.enroll", language))
         enroll_btn.clicked.connect(self._enroll)
         name_row.addWidget(enroll_btn)
         layout.addLayout(name_row)
 
-        layout.addWidget(QLabel("Funcionários cadastrados"))
+        layout.addWidget(QLabel(t("emp.list_title", language)))
         self.employee_list = QListWidget()
         layout.addWidget(self.employee_list)
 
@@ -93,17 +95,23 @@ class EmployeeEnrollmentView(QWidget):
             return
         frame = self.camera_manager.get_frame(camera_id)
         if frame is None:
-            QMessageBox.warning(self, "Sem frame", "Ainda não há frame disponível para esta câmera.")
+            QMessageBox.warning(
+                self, t("qt.no_frame_title", self.language), t("api.no_frame", self.language)
+            )
             return
         self._set_frame(frame)
 
     def _load_from_file(self):
-        path, _filter = QFileDialog.getOpenFileName(self, "Selecionar foto", "", "Imagens (*.png *.jpg *.jpeg)")
+        path, _filter = QFileDialog.getOpenFileName(
+            self, t("qt.select_photo", self.language), "", t("qt.images_filter", self.language)
+        )
         if not path:
             return
         frame = cv2.imread(path)
         if frame is None:
-            QMessageBox.warning(self, "Erro", "Não foi possível abrir a imagem selecionada.")
+            QMessageBox.warning(
+                self, t("qt.error", self.language), t("qt.image_open_failed", self.language)
+            )
             return
         self._set_frame(frame)
 
@@ -116,21 +124,27 @@ class EmployeeEnrollmentView(QWidget):
             self.preview_label.size(), Qt.KeepAspectRatio, Qt.SmoothTransformation
         )
         self.preview_label.setPixmap(pixmap)
-        self.status_label.setText("Foto carregada. Informe o nome e clique em Cadastrar.")
+        self.status_label.setText(t("qt.photo_loaded", self.language))
 
     # ------------------------------------------------------------------ #
     def _enroll(self):
         if self._current_frame is None:
-            QMessageBox.warning(self, "Sem foto", "Capture ou carregue uma foto primeiro.")
+            QMessageBox.warning(
+                self, t("qt.no_photo_title", self.language), t("qt.no_photo", self.language)
+            )
             return
         name = self.name_edit.text().strip()
         if not name:
-            QMessageBox.warning(self, "Nome obrigatório", "Informe o nome do funcionário.")
+            QMessageBox.warning(
+                self, t("emp.name", self.language), t("emp.name_required", self.language)
+            )
             return
 
         faces = self._get_recognizer().analyze(self._current_frame)
         if not faces:
-            QMessageBox.warning(self, "Nenhum rosto encontrado", "Não foi possível detectar um rosto na foto.")
+            QMessageBox.warning(
+                self, t("qt.no_face_title", self.language), t("api.face_not_detected", self.language)
+            )
             return
         face = max(faces, key=lambda f: f.det_score)
 
@@ -141,7 +155,7 @@ class EmployeeEnrollmentView(QWidget):
         finally:
             session.close()
 
-        self.status_label.setText(f"Funcionário '{name}' cadastrado.")
+        self.status_label.setText(t("qt.enrolled", self.language, name=name))
         self.name_edit.clear()
         self._current_frame = None
         self.preview_label.clear()

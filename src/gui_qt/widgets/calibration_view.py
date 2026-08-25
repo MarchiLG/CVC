@@ -1,16 +1,19 @@
 """
 calibration_view.py
 
-Tela de calibração: congela o frame mais recente de uma câmera,
-permite desenhar (clicando) a linha de contagem (item_counting) ou o
-polígono de uma zona (ppe_compliance / missing_product) sobre a
-imagem em resolução nativa, e salva de volta em tasks.yaml via
-TasksYamlWriter — preservando comentários/formatação do arquivo.
+Calibration screen: freezes the most recent frame of a camera, lets you
+draw (by clicking) the counting line (item_counting) or a zone polygon
+(ppe_compliance / missing_product) over the image at native resolution,
+and saves it back to tasks.yaml through TasksYamlWriter — preserving
+the file's comments/formatting.
 
-A imagem é exibida em resolução nativa (sem escalar para caber na
-tela) para que as coordenadas clicadas correspondam exatamente aos
-pixels do frame — o mesmo sistema de coordenadas usado por
-counting_line/zones em tasks.yaml.
+The image is shown at native resolution (not scaled to fit the screen)
+so the clicked coordinates match the frame pixels exactly — the same
+coordinate system used by counting_line/zones in tasks.yaml.
+
+The validation/assembly rules for the geometry live in
+config/calibration.py, shared with the web UI (web/api.py) — only the
+Qt drawing and the QMessageBox error display live here.
 """
 
 import cv2
@@ -33,10 +36,15 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
+from config.calibration import (
+    LINE_TYPES as _LINE_TYPES,
+    ZONE_TYPES as _ZONE_TYPES,
+    CalibrationError,
+    build_geometry_params,
+)
 from config.writer import TasksYamlWriter
+from i18n import DEFAULT_LANGUAGE, t
 
-_LINE_TYPES = {"item_counting"}
-_ZONE_TYPES = {"ppe_compliance", "missing_product"}
 POINT_COLOR = QColor("#2ecc71")
 SHAPE_COLOR = QColor("#e74c3c")
 
@@ -53,10 +61,12 @@ class _ClickableScene(QGraphicsScene):
 
 
 class CalibrationView(QWidget):
-    def __init__(self, camera_manager, tasks_yaml_path: str, parent=None):
+    def __init__(self, camera_manager, tasks_yaml_path: str, parent=None,
+                 language: str = DEFAULT_LANGUAGE):
         super().__init__(parent)
         self.camera_manager = camera_manager
         self.tasks_yaml_path = tasks_yaml_path
+        self.language = language
         self._points: list[tuple[float, float]] = []
         self._point_items = []
         self._shape_item = None
@@ -70,41 +80,41 @@ class CalibrationView(QWidget):
         for camera_id, name in self.camera_manager.list_cameras():
             self.camera_combo.addItem(f"{name} ({camera_id})", camera_id)
         self.camera_combo.currentIndexChanged.connect(self._on_camera_changed)
-        controls.addWidget(QLabel("Câmera:"))
+        controls.addWidget(QLabel(t("calib.camera", language) + ":"))
         controls.addWidget(self.camera_combo)
 
         self.task_combo = QComboBox()
         self.task_combo.currentIndexChanged.connect(self._on_task_changed)
-        controls.addWidget(QLabel("Tarefa:"))
+        controls.addWidget(QLabel(t("calib.task", language) + ":"))
         controls.addWidget(self.task_combo)
 
         self.zone_name_edit = QLineEdit()
-        self.zone_name_edit.setPlaceholderText("nome da zona")
+        self.zone_name_edit.setPlaceholderText(t("calib.zone_name", language).lower())
         controls.addWidget(self.zone_name_edit)
 
         self.expected_class_edit = QLineEdit()
-        self.expected_class_edit.setPlaceholderText("classe esperada (missing_product)")
+        self.expected_class_edit.setPlaceholderText(t("calib.expected_class", language).lower())
         controls.addWidget(self.expected_class_edit)
 
-        capture_btn = QPushButton("Capturar frame atual")
+        capture_btn = QPushButton(t("calib.capture", language))
         capture_btn.clicked.connect(self._capture_frame)
         controls.addWidget(capture_btn)
 
-        clear_btn = QPushButton("Limpar pontos")
+        clear_btn = QPushButton(t("calib.clear", language))
         clear_btn.clicked.connect(self._clear_points)
         controls.addWidget(clear_btn)
 
-        finish_btn = QPushButton("Finalizar polígono")
+        finish_btn = QPushButton(t("qt.finish_polygon", language))
         finish_btn.clicked.connect(self._finish_polygon)
         controls.addWidget(finish_btn)
 
-        save_btn = QPushButton("Salvar")
+        save_btn = QPushButton(t("calib.save", language))
         save_btn.clicked.connect(self._save)
         controls.addWidget(save_btn)
 
         layout.addLayout(controls)
 
-        self.status_label = QLabel("Selecione uma câmera e uma tarefa, depois capture um frame.")
+        self.status_label = QLabel(t("calib.hint.start", language))
         layout.addWidget(self.status_label)
 
         self.scene = _ClickableScene(self._on_scene_clicked)
@@ -115,7 +125,7 @@ class CalibrationView(QWidget):
             self._on_camera_changed(0)
 
     # ------------------------------------------------------------------ #
-    # Seleção de câmera / tarefa
+    # Camera / task selection
     # ------------------------------------------------------------------ #
     def _on_camera_changed(self, _index):
         camera_id = self.camera_combo.currentData()
@@ -151,7 +161,7 @@ class CalibrationView(QWidget):
             else:
                 self.zone_name_edit.clear()
                 self.expected_class_edit.clear()
-        self.status_label.setText(f"Tarefa selecionada: {task_type}")
+        self.status_label.setText(t("qt.task_selected", self.language, type=task_type))
 
     def _selected_camera_id(self):
         return self.camera_combo.currentData()
@@ -166,7 +176,7 @@ class CalibrationView(QWidget):
         return self._current_tasks[index]
 
     # ------------------------------------------------------------------ #
-    # Captura de frame / desenho
+    # Frame capture / drawing
     # ------------------------------------------------------------------ #
     def _capture_frame(self):
         camera_id = self._selected_camera_id()
@@ -174,7 +184,9 @@ class CalibrationView(QWidget):
             return
         frame = self.camera_manager.get_frame(camera_id)
         if frame is None:
-            QMessageBox.warning(self, "Sem frame", "Ainda não há frame disponível para esta câmera.")
+            QMessageBox.warning(
+                self, t("qt.no_frame_title", self.language), t("api.no_frame", self.language)
+            )
             return
 
         frame_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
@@ -189,7 +201,7 @@ class CalibrationView(QWidget):
         self._points = []
         self._point_items = []
         self._shape_item = None
-        self.status_label.setText(f"Frame capturado ({w}x{h}). Clique para marcar pontos.")
+        self.status_label.setText(t("calib.hint.captured", self.language, width=w, height=h))
 
     def _on_scene_clicked(self, scene_pos: QPointF):
         if self._pixmap_item is None:
@@ -233,7 +245,9 @@ class CalibrationView(QWidget):
 
     def _finish_polygon(self):
         self._redraw_shape()
-        self.status_label.setText(f"Polígono com {len(self._points)} pontos pronto para salvar.")
+        self.status_label.setText(
+            t("qt.polygon_ready", self.language, count=len(self._points))
+        )
 
     def _clear_points(self):
         for item in self._point_items:
@@ -245,7 +259,7 @@ class CalibrationView(QWidget):
         self._points = []
 
     # ------------------------------------------------------------------ #
-    # Salvar
+    # Saving
     # ------------------------------------------------------------------ #
     def _save(self):
         camera_id = self._selected_camera_id()
@@ -254,47 +268,25 @@ class CalibrationView(QWidget):
         if camera_id is None or task_index is None or task is None:
             return
 
-        task_type = task.get("type")
-        params = dict(task.get("params", {}) or {})
-
-        if task_type in _LINE_TYPES:
-            if len(self._points) != 2:
-                QMessageBox.warning(self, "Linha incompleta", "Marque exatamente 2 pontos para a linha de contagem.")
-                return
-            (x1, y1), (x2, y2) = self._points
-            params["counting_line"] = {"p1": [round(x1), round(y1)], "p2": [round(x2), round(y2)]}
-
-        elif task_type in _ZONE_TYPES:
-            if len(self._points) < 3:
-                QMessageBox.warning(self, "Zona incompleta", "Marque pelo menos 3 pontos para a zona.")
-                return
-            name = self.zone_name_edit.text().strip()
-            if not name:
-                QMessageBox.warning(self, "Nome obrigatório", "Informe um nome para a zona.")
-                return
-
-            zone = {"name": name, "polygon": [[round(x), round(y)] for x, y in self._points]}
-            if task_type == "missing_product":
-                expected_class = self.expected_class_edit.text().strip()
-                if not expected_class:
-                    QMessageBox.warning(self, "Classe obrigatória", "Informe a classe esperada da zona.")
-                    return
-                zone["expected_class"] = expected_class
-
-            zones = list(params.get("zones", []))
-            for i, existing in enumerate(zones):
-                if existing.get("name") == name:
-                    zones[i] = zone
-                    break
-            else:
-                zones.append(zone)
-            params["zones"] = zones
-
-        else:
-            QMessageBox.warning(self, "Tipo não suportado", f"Calibração visual não suportada para '{task_type}'.")
+        try:
+            params = build_geometry_params(
+                task.get("type"),
+                task.get("params"),
+                self._points,
+                zone_name=self.zone_name_edit.text(),
+                expected_class=self.expected_class_edit.text(),
+            )
+        except CalibrationError as error:
+            # The exception carries a translation code, so the message
+            # follows app.yaml -> ui.language just like the rest of the UI.
+            QMessageBox.warning(
+                self,
+                t("qt.invalid_calibration", self.language),
+                t(error.code, self.language),
+            )
             return
 
         writer = TasksYamlWriter(self.tasks_yaml_path)
         writer.set_task_params(camera_id, task_index, params)
         self._current_tasks = self._load_tasks(camera_id)
-        self.status_label.setText("Salvo em tasks.yaml.")
+        self.status_label.setText(t("qt.saved_to_yaml", self.language))

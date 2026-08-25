@@ -7,7 +7,7 @@ SRC_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__)
 if SRC_DIR not in sys.path:
     sys.path.insert(0, SRC_DIR)
 
-# Testes de widgets Qt (fase 4) não precisam de um display real.
+# Qt widget tests do not need a real display.
 os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 
 

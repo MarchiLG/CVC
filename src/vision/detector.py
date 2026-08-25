@@ -1,8 +1,8 @@
 """
 detector.py
 
-Roda a inferência YOLO sobre um frame e converte o resultado para a
-lista de Detection compartilhada entre tracker e TaskAnalyzers.
+Runs YOLO inference over a frame and converts the result into the list
+of Detection objects shared by the tracker and the TaskAnalyzers.
 """
 
 from .model_registry import ModelRegistry

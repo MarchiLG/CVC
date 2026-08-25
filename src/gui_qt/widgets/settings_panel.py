@@ -1,12 +1,12 @@
 """
 settings_panel.py
 
-Painel de configurações: lista e edita as tarefas atribuídas a cada
-câmera em tasks.yaml (tipo, modelo, detect_fps, EPI exigido) e os
-flags de cada tarefa (habilitado, severidade, canais de notificação).
-Salva via TasksYamlWriter, preservando comentários/formatação. A
-calibração de geometria (linha/zona) fica na aba de Calibração — este
-painel cuida do resto da configuração de cada tarefa.
+Settings panel: lists and edits the tasks assigned to each camera in
+tasks.yaml (type, model, detect_fps, required PPE) and each task's flags
+(enabled, severity, notification channels). Saves through
+TasksYamlWriter, preserving comments/formatting. Geometry calibration
+(line/zone) lives in the Calibration tab — this panel handles the rest
+of each task's configuration.
 """
 
 from PySide6.QtWidgets import (
@@ -24,16 +24,19 @@ from PySide6.QtWidgets import (
 )
 
 from config.writer import TasksYamlWriter
+from i18n import DEFAULT_LANGUAGE, t
 from tasks.registry import available_types
 
 _SEVERITIES = ["info", "warning", "critical"]
 
 
 class SettingsPanel(QWidget):
-    def __init__(self, camera_manager, tasks_yaml_path: str, parent=None):
+    def __init__(self, camera_manager, tasks_yaml_path: str, parent=None,
+                 language: str = DEFAULT_LANGUAGE):
         super().__init__(parent)
         self.camera_manager = camera_manager
         self.tasks_yaml_path = tasks_yaml_path
+        self.language = language
         self._tasks = []
 
         layout = QVBoxLayout(self)
@@ -43,35 +46,46 @@ class SettingsPanel(QWidget):
         for camera_id, name in self.camera_manager.list_cameras():
             self.camera_combo.addItem(f"{name} ({camera_id})", camera_id)
         self.camera_combo.currentIndexChanged.connect(self._reload_tasks)
-        top.addWidget(QLabel("Câmera:"))
+        top.addWidget(QLabel(t("calib.camera", language) + ":"))
         top.addWidget(self.camera_combo)
         layout.addLayout(top)
 
-        layout.addWidget(QLabel("Tarefas"))
+        layout.addWidget(QLabel(t("qt.tasks_label", language)))
         self.tasks_table = QTableWidget(0, 5)
-        self.tasks_table.setHorizontalHeaderLabels(["Tipo", "Modelo", "detect_fps", "EPI exigido (ppe_compliance)", "Remover"])
+        self.tasks_table.setHorizontalHeaderLabels([
+            t("qt.col.type", language),
+            t("qt.col.model", language),
+            t("settings.detect_fps", language),
+            t("qt.col.required_ppe", language),
+            t("qt.col.remove", language),
+        ])
         self.tasks_table.itemSelectionChanged.connect(self._on_task_selected)
         layout.addWidget(self.tasks_table)
 
         add_row = QHBoxLayout()
         self.new_type_combo = QComboBox()
         self.new_type_combo.addItems(available_types())
-        add_row.addWidget(QLabel("Nova tarefa:"))
+        add_row.addWidget(QLabel(t("qt.new_task", language)))
         add_row.addWidget(self.new_type_combo)
-        add_task_btn = QPushButton("Adicionar tarefa")
+        add_task_btn = QPushButton(t("settings.add", language))
         add_task_btn.clicked.connect(self._add_task)
         add_row.addWidget(add_task_btn)
-        save_tasks_btn = QPushButton("Salvar alterações de tarefas")
+        save_tasks_btn = QPushButton(t("qt.save_tasks", language))
         save_tasks_btn.clicked.connect(self._save_tasks)
         add_row.addWidget(save_tasks_btn)
         layout.addLayout(add_row)
 
-        layout.addWidget(QLabel("Flags da tarefa selecionada"))
+        layout.addWidget(QLabel(t("qt.flags_label", language)))
         self.flags_table = QTableWidget(0, 4)
-        self.flags_table.setHorizontalHeaderLabels(["id", "enabled", "severity", "notify (log,desktop)"])
+        self.flags_table.setHorizontalHeaderLabels([
+            t("qt.col.id", language),
+            t("qt.col.enabled", language),
+            t("qt.col.severity", language),
+            t("qt.col.notify", language),
+        ])
         layout.addWidget(self.flags_table)
 
-        save_flags_btn = QPushButton("Salvar flags")
+        save_flags_btn = QPushButton(t("qt.save_flags", language))
         save_flags_btn.clicked.connect(self._save_flags)
         layout.addWidget(save_flags_btn)
 
@@ -100,7 +114,7 @@ class SettingsPanel(QWidget):
             required_ppe = ",".join(task.get("params", {}).get("required_ppe", []))
             self.tasks_table.setItem(row, 3, QTableWidgetItem(required_ppe))
 
-            remove_btn = QPushButton("Remover")
+            remove_btn = QPushButton(t("settings.remove", self.language))
             remove_btn.clicked.connect(lambda _checked, r=row: self._remove_task(r))
             self.tasks_table.setCellWidget(row, 4, remove_btn)
 
@@ -148,7 +162,11 @@ class SettingsPanel(QWidget):
         camera_id = self._selected_camera_id()
         if camera_id is None or row >= len(self._tasks):
             return
-        confirm = QMessageBox.question(self, "Remover tarefa", "Remover esta tarefa?")
+        confirm = QMessageBox.question(
+            self,
+            t("qt.remove_task_title", self.language),
+            t("qt.remove_task_question", self.language),
+        )
         if confirm != QMessageBox.Yes:
             return
         writer = TasksYamlWriter(self.tasks_yaml_path)
@@ -172,7 +190,9 @@ class SettingsPanel(QWidget):
                 writer.set_task_params(camera_id, row, params)
 
         self._reload_tasks()
-        QMessageBox.information(self, "Salvo", "Alterações de tarefas salvas.")
+        QMessageBox.information(
+            self, t("qt.saved_title", self.language), t("qt.tasks_saved", self.language)
+        )
 
     def _save_flags(self):
         camera_id = self._selected_camera_id()
@@ -190,4 +210,6 @@ class SettingsPanel(QWidget):
             notify = [c.strip() for c in (notify_item.text() if notify_item else "").split(",") if c.strip()]
             writer.set_flag(camera_id, task_row, flag_id, enabled=enabled, severity=severity, notify=notify)
 
-        QMessageBox.information(self, "Salvo", "Flags salvos.")
+        QMessageBox.information(
+            self, t("qt.saved_title", self.language), t("qt.flags_saved", self.language)
+        )

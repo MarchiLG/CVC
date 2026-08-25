@@ -1,9 +1,9 @@
 """
 flag_manager.py
 
-Recebe Flags emitidos pelos TaskAnalyzers, aplica debounce (evita
-notificar repetidamente o mesmo alerta a cada frame) e roteia cada um
-para os canais de notificação indicados em flag.notify.
+Receives Flags emitted by the TaskAnalyzers, applies debouncing (so the
+same alert is not notified over and over on every frame) and routes
+each one to the notification channels listed in flag.notify.
 """
 
 import threading

@@ -1,9 +1,9 @@
 """
 log_notifier.py
 
-Canal de notificação "log": registra o Flag via logging padrão do
-Python. Serve como fallback sempre disponível, independente de outros
-canais (desktop, banco de dados, etc.) estarem configurados ou não.
+The "log" notification channel: records the Flag through Python's
+standard logging. It serves as an always-available fallback, whether or
+not the other channels (desktop, database, etc.) are configured.
 """
 
 import logging

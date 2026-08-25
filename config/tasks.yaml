@@ -1,12 +1,11 @@
-# Tarefas de visão por câmera (fase 3+5). "type" precisa estar
-# registrado em tasks/registry.py — os built-ins (auto-registrados ao
-# importar o pacote "tasks", ver tasks/__init__.py) são:
+# Vision tasks per camera. "type" must be registered in
+# tasks/registry.py — the built-ins (auto-registered when the "tasks"
+# package is imported, see tasks/__init__.py) are:
 #   item_counting, ppe_compliance, missing_product, face_id
 #
-# As coordenadas de linha/zona abaixo são exemplos ilustrativos
-# (assumindo frame ~1920x1080) — a fase 4 adiciona uma ferramenta de
-# calibração visual para desenhar isso sobre o vídeo ao vivo em vez de
-# editar pixels à mão aqui.
+# The line/zone coordinates below are illustrative examples (assuming a
+# ~1920x1080 frame) — use the Calibration screen of either interface to
+# draw them over the live video instead of typing pixels by hand here.
 
 cameras:
   cam1:
@@ -25,9 +24,9 @@ cameras:
       #      severity: warning
       #      notify: [log]
 
-      # Reconhecimento facial (fase 5) — cadastre funcionários pela aba
-      # "Funcionários" da GUI antes de habilitar em produção, senão
-      # todo rosto vira "unknown_face".
+      # Face recognition — enroll employees through the "Employees" tab
+      # before enabling this in production, otherwise every face becomes
+      # an "unknown_face".
       # - type: face_id
       # detect_fps: 1
       # params:

@@ -1,8 +1,8 @@
 """
 app.py
 
-Bootstrap da QApplication — instancia o QApplication único do
-processo antes de qualquer QWidget ser criado.
+QApplication bootstrap — creates the single QApplication of the process
+before any QWidget exists.
 """
 
 import sys

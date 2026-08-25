@@ -1,19 +1,19 @@
 """
 tracker.py
 
-Tracker por câmera: associa Detections entre frames a ids persistentes
-por IOU (interseção sobre união) + classe — uma versão simplificada de
-tracker estilo ByteTrack/BoT-SORT (greedy IOU matching com tolerância a
-alguns frames sem casar), o suficiente para contagem de itens e cálculo
-de tempo de permanência (dwell time).
+Per-camera tracker: associates Detections across frames with persistent
+ids by IOU (intersection over union) + class — a simplified take on
+ByteTrack/BoT-SORT style tracking (greedy IOU matching tolerating a few
+unmatched frames), enough for item counting and dwell time
+calculations.
 
-De propósito não usa ultralytics.trackers diretamente: aqueles internos
-esperam um objeto Results por chamada e mantêm estado dentro da própria
-instância do modelo YOLO — problemático aqui porque o modelo é
-compartilhado entre câmeras (ModelRegistry) e cada câmera precisa de
-estado de rastreio independente. Este tracker é puramente algorítmico
-(sem rede neural), então instanciar um por câmera é barato — ver
-"Threading/process model" no plano de arquitetura.
+It deliberately does not use ultralytics.trackers directly: those
+internals expect a Results object per call and keep state inside the
+YOLO model instance itself — a problem here because the model is shared
+across cameras (ModelRegistry) and each camera needs independent
+tracking state. This tracker is purely algorithmic (no neural network),
+so instantiating one per camera is cheap — see "Threading/process
+model" in the architecture plan.
 """
 
 from dataclasses import dataclass
@@ -45,7 +45,7 @@ class _TrackState:
 
 
 class Tracker:
-    """Tracker IOU greedy com estado próprio — uma instância por câmera."""
+    """Greedy IOU tracker holding its own state — one instance per camera."""
 
     def __init__(self, iou_threshold: float = 0.3, max_misses: int = 5):
         self.iou_threshold = iou_threshold
