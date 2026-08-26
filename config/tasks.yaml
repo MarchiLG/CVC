@@ -39,4 +39,8 @@ cameras:
       #     notify: [log]
 
   cam2:
-    tasks: []
+    tasks:
+      - type: face_id
+        detect_fps: 5.0
+        params: {}
+        flags: []

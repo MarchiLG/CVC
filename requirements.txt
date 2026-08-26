@@ -14,6 +14,14 @@ cryptography
 # the installed CUDA version) — device detection in vision/device.py is
 # automatic at runtime, but the right wheel still has to be installed per
 # machine.
+#
+# On Arch/CachyOS, skip the pip CUDA wheel entirely: install
+# `python-pytorch-cuda` and `python-torchvision-cuda` via pacman instead
+# (they track the driver's CUDA version and avoid pip/pacman conflicts),
+# and create .venv with `python3 -m venv --system-site-packages .venv` so
+# it can see them. pip install -r requirements.txt then leaves torch/
+# torchvision alone ("Requirement already satisfied") instead of pulling
+# in the CPU wheel on top.
 torch
 torchvision
 ultralytics
@@ -45,6 +53,10 @@ python-multipart
 # vision/face/recognizer.py already picks the right provider at runtime
 # from whatever is installed; only the package changes per machine, just
 # like the torch/CUDA case above.
+#
+# On Arch/CachyOS, install `python-onnxruntime-cuda` via pacman instead
+# (same --system-site-packages venv as torch above) rather than pip's
+# onnxruntime-gpu.
 numpy
 SQLAlchemy
 onnxruntime

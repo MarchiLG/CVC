@@ -14,6 +14,7 @@ ui:
 
 vision:
   device: cuda  # auto | cpu | cuda
+  model_size_override: yolo26m.pt
 
 db:
   enabled: false  # true also persists Flags into event_log (see notify/notifiers/db_notifier.py)
