@@ -23,7 +23,7 @@ import os
 
 from camera.camera_manager import CameraManager
 from config.loader import load_app_config, load_tasks_config
-from config.schema import AppSettings
+from config.schema import AppSettings, CameraConfig
 from db.session import init_db
 from notify.flag_manager import FlagManager
 from notify.notifiers.log_notifier import LogNotifier
@@ -224,6 +224,28 @@ class AppRuntime:
         logger.info("Pipelines reloaded from %s: %d active.",
                     self.tasks_yaml_path, len(pipelines))
         return len(pipelines)
+
+    # ------------------------------------------------------------------ #
+    # Camera registry changes (config/cameras.yaml), at runtime
+    # ------------------------------------------------------------------ #
+    def add_camera(self, config: CameraConfig) -> None:
+        """Registers a new camera and reloads the pipelines so it is
+        picked up immediately -- used after the web UI's "Add camera"
+        panel writes the new entry to cameras.yaml."""
+        self.camera_manager.add_camera(config)
+        self.reload_tasks()
+
+    def update_camera(self, config: CameraConfig) -> None:
+        """Reopens a camera's stream with its edited name/URL -- used
+        after the per-camera settings panel saves changes."""
+        self.camera_manager.update_camera(config)
+        self.reload_tasks()
+
+    def remove_camera(self, camera_id: str) -> None:
+        """Stops and forgets a camera -- used by the per-camera settings
+        panel's Delete action, and when editing disables a camera."""
+        self.camera_manager.remove_camera(camera_id)
+        self.reload_tasks()
 
     # ------------------------------------------------------------------ #
     # Queries used by the UIs

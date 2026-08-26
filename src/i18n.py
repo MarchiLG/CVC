@@ -40,6 +40,22 @@ CATALOG: dict[str, dict[str, str]] = {
         "app.name": "Vision Central",
         "app.tagline": "video monitoring",
         "app.window_title": "Computer Vision Central",
+        "app.exit": "Exit application",
+        "app.exit_confirm": "Stop the backend and close this window? Every camera stream stops.",
+        "app.exiting": "Shutting down…",
+
+        # ---- Lock screen (POST /api/unlock, security/env_vault.py) —
+        # shown before AppRuntime exists, so this MUST stay reachable
+        # without a live backend (see GET /api/i18n in web/api.py).
+        "lock.title": "Computer Vision Central",
+        "lock.subtitle_unlock": "Enter the password to unlock your camera credentials.",
+        "lock.subtitle_first_run": "Choose a password to encrypt your camera credentials (.env → .env.enc). You will need it every time the application starts — it is never stored anywhere.",
+        "lock.password": "Password",
+        "lock.confirm_password": "Confirm password",
+        "lock.unlock": "Unlock",
+        "lock.create": "Encrypt & start",
+        "lock.exit": "Exit",
+        "lock.starting": "Starting the backend…",
 
         # ---- Navigation / view headers
         "nav.live": "Live",
@@ -81,6 +97,34 @@ CATALOG: dict[str, dict[str, str]] = {
         "live.close_hint": "{name} — ESC or click to close",
         "live.video_alt": "Live video from camera {name}",
         "live.zoom_alt": "Expanded video from camera {name}",
+        "live.host_link_title": "Open {host}'s own configuration page",
+
+        # ---- Live view: "Add camera" panel
+        "live.add_camera": "Add camera",
+        "live.add_camera.title": "New camera",
+        "live.add_camera.id": "Id (optional)",
+        "live.add_camera.id_placeholder": "auto-generated from the name",
+        "live.add_camera.name": "Name",
+        "live.add_camera.protocol": "Connection",
+        "live.add_camera.host": "Host / IPv4",
+        "live.add_camera.port": "Port (optional)",
+        "live.add_camera.path": "Path",
+        "live.add_camera.path_placeholder": "/cam/realmonitor?channel=1&subtype=0",
+        "live.add_camera.username": "Username",
+        "live.add_camera.password": "Password",
+        "live.add_camera.enabled": "Enabled",
+        "live.add_camera.submit": "Add camera",
+        "live.add_camera.cancel": "Cancel",
+        "live.add_camera.added": "Camera \"{name}\" added.",
+
+        # ---- Live view: per-camera settings (the cog button)
+        "live.camera_settings": "Camera settings",
+        "live.camera_settings.title": "{name} settings",
+        "live.camera_settings.save": "Save",
+        "live.camera_settings.delete": "Delete camera",
+        "live.camera_settings.confirm_delete": "Delete camera \"{name}\"? This removes it from cameras.yaml and stops its stream.",
+        "live.camera_settings.saved": "Camera \"{name}\" saved.",
+        "live.camera_settings.deleted": "Camera \"{name}\" deleted.",
 
         # ---- Calibration view
         "calib.camera": "Camera",
@@ -190,6 +234,12 @@ CATALOG: dict[str, dict[str, str]] = {
 
         # ---- API errors (raised in web/api.py)
         "api.camera_not_found": "Camera not found.",
+        "api.camera_already_exists": "A camera with this id already exists.",
+        "api.vault_locked": "Credential store is locked — restart the application to unlock it.",
+        "api.locked": "Unlock the application first.",
+        "api.wrong_password": "Wrong password ({remaining} attempt(s) left).",
+        "api.too_many_attempts": "Too many failed attempts — the application is shutting down.",
+        "api.password_mismatch": "Passwords do not match.",
         "api.task_not_found": "That task does not exist on this camera.",
         "api.unknown_task_type": "Unknown task type.",
         "api.no_frame": "No frame available for this camera yet.",
@@ -251,6 +301,23 @@ CATALOG: dict[str, dict[str, str]] = {
         "app.name": "Vision Central",
         "app.tagline": "monitoramento por vídeo",
         "app.window_title": "Computer Vision Central",
+        "app.exit": "Encerrar aplicação",
+        "app.exit_confirm": "Parar o backend e fechar esta janela? Todos os streams de câmera param.",
+        "app.exiting": "Encerrando…",
+
+        # ---- Tela de bloqueio (POST /api/unlock, security/env_vault.py)
+        # — aparece antes de existir um AppRuntime, então precisa
+        # continuar acessível sem um backend vivo (ver GET /api/i18n em
+        # web/api.py).
+        "lock.title": "Computer Vision Central",
+        "lock.subtitle_unlock": "Digite a senha para desbloquear suas credenciais de câmera.",
+        "lock.subtitle_first_run": "Escolha uma senha para criptografar suas credenciais de câmera (.env → .env.enc). Você vai precisar dela toda vez que a aplicação iniciar — ela nunca é armazenada em lugar nenhum.",
+        "lock.password": "Senha",
+        "lock.confirm_password": "Confirmar senha",
+        "lock.unlock": "Desbloquear",
+        "lock.create": "Criptografar e iniciar",
+        "lock.exit": "Sair",
+        "lock.starting": "Iniciando o backend…",
 
         # ---- Navigation / view headers
         "nav.live": "Ao vivo",
@@ -292,6 +359,34 @@ CATALOG: dict[str, dict[str, str]] = {
         "live.close_hint": "{name} — ESC ou clique para fechar",
         "live.video_alt": "Vídeo ao vivo da câmera {name}",
         "live.zoom_alt": "Vídeo ampliado da câmera {name}",
+        "live.host_link_title": "Abrir a página de configuração da própria {host}",
+
+        # ---- Tela Ao vivo: painel "Adicionar câmera"
+        "live.add_camera": "Adicionar câmera",
+        "live.add_camera.title": "Nova câmera",
+        "live.add_camera.id": "Id (opcional)",
+        "live.add_camera.id_placeholder": "gerado automaticamente a partir do nome",
+        "live.add_camera.name": "Nome",
+        "live.add_camera.protocol": "Conexão",
+        "live.add_camera.host": "Host / IPv4",
+        "live.add_camera.port": "Porta (opcional)",
+        "live.add_camera.path": "Caminho",
+        "live.add_camera.path_placeholder": "/cam/realmonitor?channel=1&subtype=0",
+        "live.add_camera.username": "Usuário",
+        "live.add_camera.password": "Senha",
+        "live.add_camera.enabled": "Habilitada",
+        "live.add_camera.submit": "Adicionar câmera",
+        "live.add_camera.cancel": "Cancelar",
+        "live.add_camera.added": "Câmera \"{name}\" adicionada.",
+
+        # ---- Tela Ao vivo: configurações por câmera (botão de engrenagem)
+        "live.camera_settings": "Configurações da câmera",
+        "live.camera_settings.title": "Configurações de {name}",
+        "live.camera_settings.save": "Salvar",
+        "live.camera_settings.delete": "Excluir câmera",
+        "live.camera_settings.confirm_delete": "Excluir a câmera \"{name}\"? Isso a remove de cameras.yaml e para o seu stream.",
+        "live.camera_settings.saved": "Câmera \"{name}\" salva.",
+        "live.camera_settings.deleted": "Câmera \"{name}\" excluída.",
 
         # ---- Calibration view
         "calib.camera": "Câmera",
@@ -401,6 +496,12 @@ CATALOG: dict[str, dict[str, str]] = {
 
         # ---- API errors (raised in web/api.py)
         "api.camera_not_found": "Câmera não encontrada.",
+        "api.camera_already_exists": "Já existe uma câmera com esse id.",
+        "api.vault_locked": "O cofre de credenciais está bloqueado — reinicie a aplicação para desbloqueá-lo.",
+        "api.locked": "Desbloqueie a aplicação primeiro.",
+        "api.wrong_password": "Senha incorreta ({remaining} tentativa(s) restante(s)).",
+        "api.too_many_attempts": "Muitas tentativas incorretas — a aplicação está sendo encerrada.",
+        "api.password_mismatch": "As senhas não coincidem.",
         "api.task_not_found": "Esta tarefa não existe nesta câmera.",
         "api.unknown_task_type": "Tipo de tarefa desconhecido.",
         "api.no_frame": "Ainda não há frame disponível para esta câmera.",

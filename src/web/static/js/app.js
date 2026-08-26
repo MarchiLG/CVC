@@ -52,11 +52,40 @@ const app = {
   alertsPrimed: false,
   pollTimer: null,
 
-  async start() {
+  /**
+   * Entry point (called once, at the bottom of this file). Decides
+   * between the lock screen and the real app BEFORE anything backend-
+   * shaped happens — the web app now starts with no AppRuntime at all
+   * (see web/server.py), specifically so it can be opened by
+   * double-clicking run-html.sh with no terminal to type a password
+   * into. GET /api/lock and /api/i18n both work in that locked state;
+   * everything else (state, cameras, tasks...) does not yet.
+   */
+  async boot() {
     // The catalog has to arrive BEFORE anything renders, otherwise the
-    // first paint would show raw translation keys.
+    // first paint (lock screen included) would show raw translation
+    // keys. Safe to call even while locked — see GET /api/i18n.
     await this.setupLanguage();
+    this.bindExitButtons();
 
+    let status;
+    try {
+      status = await api.getLockStatus();
+    } catch {
+      // The server itself is not answering yet (e.g. still binding the
+      // port right after launch) — assume unlocked and let start()'s
+      // own polling/offline handling take over on the next tick.
+      status = { unlocked: true, first_run: false };
+    }
+
+    if (status.unlocked) {
+      this.enterApp();
+    } else {
+      this.showLockScreen(status.first_run);
+    }
+  },
+
+  async start() {
     liveView.init();
     calibrationView.init();
     settingsView.init();
@@ -77,6 +106,109 @@ const app = {
       if (document.hidden) liveView.suspend();
       else liveView.resume();
     });
+  },
+
+  // ------------------------------------------------------------------ //
+  // Lock screen (POST /api/unlock, src/security/env_vault.py)
+  // ------------------------------------------------------------------ //
+  showLockScreen(firstRun) {
+    setVisible($('#app-shell'), false);
+    setVisible($('#lock-screen'), true);
+
+    $('#lock-subtitle').textContent = t(firstRun ? 'lock.subtitle_first_run' : 'lock.subtitle_unlock');
+    setVisible($('#lock-confirm-field'), firstRun);
+    $('#lock-submit').textContent = t(firstRun ? 'lock.create' : 'lock.unlock');
+    $('#lock-password').focus();
+
+    // Bound once: submitUnlock() re-reads #lock-confirm-field's
+    // visibility on every submit, so re-binding on retry is not needed.
+    $('#lock-form').addEventListener('submit', (event) => this.submitUnlock(event));
+  },
+
+  async submitUnlock(event) {
+    event.preventDefault();
+
+    const passwordInput = $('#lock-password');
+    const firstRun = !$('#lock-confirm-field').hidden;
+    const password = passwordInput.value;
+    const confirm = firstRun ? $('#lock-confirm').value : undefined;
+
+    if (firstRun && password !== confirm) {
+      this.showLockError(t('api.password_mismatch'));
+      return;
+    }
+
+    const submitBtn = $('#lock-submit');
+    const originalLabel = submitBtn.textContent;
+    submitBtn.disabled = true;
+    submitBtn.textContent = t('lock.starting');
+    this.showLockError('');
+
+    try {
+      await api.unlock(password, confirm);
+      this.enterApp();
+    } catch (error) {
+      this.showLockError(error.message);
+
+      if (error.code === 'api.too_many_attempts') {
+        // The server already triggered its own shutdown — nothing left
+        // to retry, so the form stays disabled instead of resetting.
+        passwordInput.disabled = true;
+        $('#lock-exit').disabled = true;
+        return;
+      }
+
+      submitBtn.disabled = false;
+      submitBtn.textContent = originalLabel;
+      passwordInput.value = '';
+      passwordInput.focus();
+    }
+  },
+
+  showLockError(message) {
+    const node = $('#lock-error');
+    node.textContent = message;
+    setVisible(node, Boolean(message));
+  },
+
+  enterApp() {
+    setVisible($('#lock-screen'), false);
+    setVisible($('#app-shell'), true);
+    this.start();
+  },
+
+  // ------------------------------------------------------------------ //
+  // "Exit application" — stops the backend and the Python process
+  // itself (POST /api/shutdown), for when there is no terminal to
+  // Ctrl+C because the app was started by double-clicking run-html.sh.
+  // ------------------------------------------------------------------ //
+  bindExitButtons() {
+    for (const button of [$('#exit-app-btn'), $('#lock-exit')]) {
+      button.addEventListener('click', () => this.requestShutdown());
+    }
+  },
+
+  async requestShutdown() {
+    if (!window.confirm(t('app.exit_confirm'))) return;
+
+    try {
+      await api.shutdown();
+    } catch {
+      // The connection dropping mid-response, as the process exits, IS
+      // the expected outcome here — not a failure to report.
+    }
+    this.showShuttingDown();
+  },
+
+  showShuttingDown() {
+    if (this.pollTimer) clearInterval(this.pollTimer);
+    liveView.suspend();
+
+    setVisible($('#app-shell'), false);
+    const screen = $('#lock-screen');
+    clear(screen);
+    screen.append(el('div', { class: 'lock-card lock-card--message' }, t('app.exiting')));
+    setVisible(screen, true);
   },
 
   // ------------------------------------------------------------------ //
@@ -325,4 +457,4 @@ function alertMessage(alert) {
   return alert.message || alert.flag_id;
 }
 
-app.start();
+app.boot();

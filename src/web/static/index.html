@@ -39,7 +39,46 @@
 </head>
 
 <body>
-<div class="app-shell">
+
+<!-- ====================================================================
+     LOCK SCREEN — shown before the credential vault (security/
+     env_vault.py) is unlocked. js/app.js checks GET /api/lock before
+     anything else and toggles this vs. .app-shell; nothing below this
+     point talks to the backend until POST /api/unlock succeeds.
+     ==================================================================== -->
+<div class="lock-screen" id="lock-screen" hidden>
+  <form class="lock-card" id="lock-form">
+    <div class="lock-card__brand">
+      <div class="sidebar__logo" aria-hidden="true">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M2 7.5A1.5 1.5 0 0 1 3.5 6h9A1.5 1.5 0 0 1 14 7.5v9A1.5 1.5 0 0 1 12.5 18h-9A1.5 1.5 0 0 1 2 16.5z"/>
+          <path d="m14 10.5 5.4-3.1a.8.8 0 0 1 1.2.7v7.8a.8.8 0 0 1-1.2.7L14 13.5z"/>
+          <circle cx="8" cy="12" r="2.2"/>
+        </svg>
+      </div>
+      <h1 data-i18n="lock.title">Computer Vision Central</h1>
+    </div>
+    <p class="lock-card__subtitle" id="lock-subtitle"></p>
+
+    <label class="field">
+      <span data-i18n="lock.password">Password</span>
+      <input type="password" id="lock-password" class="input" autocomplete="current-password" required>
+    </label>
+    <label class="field" id="lock-confirm-field" hidden>
+      <span data-i18n="lock.confirm_password">Confirm password</span>
+      <input type="password" id="lock-confirm" class="input" autocomplete="new-password">
+    </label>
+
+    <p class="lock-card__error" id="lock-error" hidden></p>
+
+    <div class="lock-card__actions">
+      <button type="button" class="btn btn--sm" id="lock-exit" data-i18n="lock.exit">Exit</button>
+      <button type="submit" class="btn btn--sm btn--primary" id="lock-submit" data-i18n="lock.unlock">Unlock</button>
+    </div>
+  </form>
+</div>
+
+<div class="app-shell" id="app-shell" hidden>
 
   <!-- ================================================================
        SIDEBAR — navigation between screens + system status
@@ -117,6 +156,12 @@
         <span class="dot" id="status-dot"></span>
         <span id="status-conn" data-i18n="status.connecting">connecting…</span>
       </div>
+
+      <!-- Gracefully stops the backend and terminates the Python
+           process (POST /api/shutdown) — the only way to stop the
+           application when it was started by double-clicking
+           run-html.sh, with no terminal to Ctrl+C. -->
+      <button type="button" class="btn btn--sm btn--danger sidebar__exit" id="exit-app-btn" data-i18n="app.exit">Exit application</button>
     </div>
   </aside>
 
@@ -177,7 +222,67 @@
             <span class="switch__track"><span class="switch__thumb"></span></span>
             <span data-i18n="live.overlay">Detection boxes</span>
           </label>
+
+          <button type="button" id="live-add-camera-btn" class="btn btn--sm btn--accent live-toolbar__add">
+            <span aria-hidden="true">+</span>
+            <span data-i18n="live.add_camera">Add camera</span>
+          </button>
         </div>
+
+        <!-- New-camera form, toggled by #live-add-camera-btn. Submitting
+             it calls POST /api/cameras (js/views/live.js), which builds
+             the connection string server-side and writes both
+             cameras.yaml and the encrypted .env vault. -->
+        <form id="live-add-camera-panel" class="add-camera-panel" hidden>
+          <h3 data-i18n="live.add_camera.title">New camera</h3>
+          <div class="add-camera-panel__grid">
+            <label class="field">
+              <span data-i18n="live.add_camera.name">Name</span>
+              <input id="cam-new-name" class="input input--sm" required>
+            </label>
+            <label class="field">
+              <span data-i18n="live.add_camera.id">Id (optional)</span>
+              <input id="cam-new-id" class="input input--sm" data-i18n-placeholder="live.add_camera.id_placeholder">
+            </label>
+            <label class="field">
+              <span data-i18n="live.add_camera.protocol">Connection</span>
+              <select id="cam-new-protocol" class="input input--sm">
+                <option value="rtsp" selected>RTSP</option>
+                <option value="http">HTTP / MJPEG</option>
+                <option value="https">HTTPS / MJPEG</option>
+              </select>
+            </label>
+            <label class="field">
+              <span data-i18n="live.add_camera.host">Host / IPv4</span>
+              <input id="cam-new-host" class="input input--sm" placeholder="192.168.1.10" required>
+            </label>
+            <label class="field">
+              <span data-i18n="live.add_camera.port">Port (optional)</span>
+              <input id="cam-new-port" class="input input--sm" type="number" min="1" max="65535">
+            </label>
+            <label class="field">
+              <span data-i18n="live.add_camera.username">Username</span>
+              <input id="cam-new-username" class="input input--sm" autocomplete="off">
+            </label>
+            <label class="field">
+              <span data-i18n="live.add_camera.password">Password</span>
+              <input id="cam-new-password" class="input input--sm" type="password" autocomplete="new-password">
+            </label>
+            <label class="field add-camera-panel__field--wide">
+              <span data-i18n="live.add_camera.path">Path</span>
+              <input id="cam-new-path" class="input input--sm" data-i18n-placeholder="live.add_camera.path_placeholder">
+            </label>
+          </div>
+          <label class="switch">
+            <input type="checkbox" id="cam-new-enabled" checked>
+            <span class="switch__track"><span class="switch__thumb"></span></span>
+            <span data-i18n="live.add_camera.enabled">Enabled</span>
+          </label>
+          <div class="add-camera-panel__actions">
+            <button type="button" id="live-add-camera-cancel" class="btn btn--sm" data-i18n="live.add_camera.cancel">Cancel</button>
+            <button type="submit" class="btn btn--sm btn--primary" data-i18n="live.add_camera.submit">Add camera</button>
+          </div>
+        </form>
 
         <!-- One .camera-card per camera, created by js/views/live.js. -->
         <div class="camera-grid" id="live-grid"></div>

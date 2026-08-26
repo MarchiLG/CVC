@@ -145,6 +145,11 @@ code {
 .status-row--conn { align-items: center; justify-content: flex-start; margin-top: var(--sp-1); }
 .status-row--conn span:last-child { color: var(--text-faint); }
 
+/* "Exit application" — stops the backend and terminates the process
+   (POST /api/shutdown). Full-width and set apart from the read-only
+   status rows above it, since it is the one destructive action here. */
+.sidebar__exit { width: 100%; margin-top: var(--sp-3); justify-content: center; }
+
 /* Language picker, above the status rows. */
 .sidebar__language { margin-bottom: var(--sp-2); }
 .sidebar__language label { flex-shrink: 0; }

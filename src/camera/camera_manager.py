@@ -16,6 +16,7 @@ class CameraManager:
     def __init__(self, config_path: str):
         self.config_path = config_path
         self.cameras: dict[str, CameraStream] = {}
+        self._started = False
         self._load_config()
 
     def _load_config(self):
@@ -30,11 +31,40 @@ class CameraManager:
             self.cameras[camera.camera_id] = camera
 
     def start_all(self):
+        self._started = True
         for camera in self.cameras.values():
             camera.start()
 
     def stop_all(self):
+        self._started = False
         for camera in self.cameras.values():
+            camera.stop()
+
+    # ------------------------------------------------------------------ #
+    # Runtime registry changes -- used by the web UI's "Add camera" panel
+    # and per-camera settings menu, so a change takes effect immediately
+    # instead of requiring a restart.
+    # ------------------------------------------------------------------ #
+    def add_camera(self, config) -> None:
+        """Registers a camera and, if the manager is already running,
+        starts it right away. A disabled config is accepted but not
+        added -- matching _load_config()'s startup behavior."""
+        if not config.enabled:
+            return
+        camera = CameraStream(camera_id=config.id, name=config.name, url=config.url)
+        self.cameras[camera.camera_id] = camera
+        if self._started:
+            camera.start()
+
+    def update_camera(self, config) -> None:
+        """Replaces an existing camera's stream so a new URL/name opens
+        a fresh connection instead of reusing the old one."""
+        self.remove_camera(config.id)
+        self.add_camera(config)
+
+    def remove_camera(self, camera_id: str) -> None:
+        camera = self.cameras.pop(camera_id, None)
+        if camera is not None:
             camera.stop()
 
     def list_cameras(self):

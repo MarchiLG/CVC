@@ -3,6 +3,10 @@ PyYAML
 python-dotenv
 pytest
 
+# Encrypts .env into .env.enc on first run (src/security/env_vault.py) —
+# the password-derived key uses cryptography's Fernet + PBKDF2HMAC.
+cryptography
+
 # Detection and tracking. The torch package below installs the CPU
 # variant by default from PyPI. On a machine with an NVIDIA GPU, install
 # the CUDA variant BEFORE the rest of requirements.txt, following

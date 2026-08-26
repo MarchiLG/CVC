@@ -219,6 +219,31 @@ input[type="file"].input::file-selector-button {
   display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-5);
   margin-bottom: var(--sp-4);
 }
+.live-toolbar__add { margin-left: auto; display: inline-flex; align-items: center; gap: var(--sp-1); }
+
+/* "Add camera" panel — a collapsible form toggled by .live-toolbar__add,
+   built from static markup in index.html (unlike the camera cards
+   below, which are JS-built) since its fields never change per camera. */
+.add-camera-panel {
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: var(--sp-4);
+  margin-bottom: var(--sp-4);
+}
+.add-camera-panel h3 { font-size: var(--fs-md); margin-bottom: var(--sp-3); }
+.add-camera-panel__grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: var(--sp-3) var(--sp-4);
+  margin-bottom: var(--sp-4);
+}
+.add-camera-panel__field--wide { grid-column: 1 / -1; }
+.add-camera-panel .switch { margin-top: var(--sp-4); }
+.add-camera-panel__actions {
+  display: flex; justify-content: flex-end; gap: var(--sp-2);
+  margin-top: var(--sp-4);
+}
 
 /* auto-fit + minmax = as many columns as fit, with no media query.
    auto-FIT (rather than auto-fill) collapses the empty columns, so with
@@ -245,9 +270,57 @@ input[type="file"].input::file-selector-button {
   padding: var(--sp-3) var(--sp-4);
   border-bottom: 1px solid var(--border-soft);
 }
-.camera-card__name { font-weight: 600; font-size: var(--fs-base); flex: 1; min-width: 0;
+.camera-card__title {
+  display: flex; align-items: baseline; gap: var(--sp-2); flex: 1; min-width: 0;
+}
+.camera-card__name { font-weight: 600; font-size: var(--fs-base);
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+/* The camera's own web configuration page. Deliberately understated —
+   text-faint, no underline, no "link blue" — so it reads as the
+   camera's address rather than a call to action; the underline only
+   appears on hover/focus as the one hint that it is clickable. */
+.camera-card__host {
+  font-family: var(--font-mono); font-size: var(--fs-xs); color: var(--text-faint);
+  text-decoration: none; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  flex-shrink: 1; min-width: 3ch;
+  transition: color var(--t-fast);
+}
+.camera-card__host:hover, .camera-card__host:focus-visible {
+  color: var(--text-muted); text-decoration: underline;
+}
+
+.camera-card__cog {
+  padding: 4px; font-size: var(--fs-base); line-height: 1; flex-shrink: 0;
+}
+
 .camera-card__id { font-family: var(--font-mono); font-size: var(--fs-xs); color: var(--text-faint); }
+
+/* Per-camera settings, toggled by .camera-card__cog. Prefilled from
+   .env (the vault already unlocked at startup) — editing it rewrites
+   cameras.yaml and re-encrypts .env.enc, no extra login. */
+.camera-settings-panel:not([hidden]) {
+  padding: var(--sp-4);
+  border-top: 1px solid var(--border-soft);
+  background: var(--bg-raised);
+}
+.camera-settings-panel__title { font-size: var(--fs-sm); font-weight: 600; margin-bottom: var(--sp-3); }
+.camera-settings-panel__grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+  gap: var(--sp-3);
+}
+.camera-settings-panel__field { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+.camera-settings-panel__field > span {
+  font-size: var(--fs-xs); font-weight: 500; color: var(--text-faint);
+  text-transform: uppercase; letter-spacing: 0.05em;
+}
+.camera-settings-panel__field--wide { grid-column: 1 / -1; }
+.camera-settings-panel .switch { margin-top: var(--sp-4); }
+.camera-settings-panel__actions {
+  display: flex; justify-content: space-between; gap: var(--sp-2);
+  margin-top: var(--sp-4);
+}
 
 /* Video area: a fixed 16:9 ratio so the grid does not "jump" while
    frames arrive at different sizes. */
@@ -530,3 +603,60 @@ input[type="file"].input::file-selector-button {
 
 @keyframes toast-in  { from { opacity: 0; transform: translateY(12px) scale(0.97); } to { opacity: 1; transform: none; } }
 @keyframes toast-out { to   { opacity: 0; transform: translateY(8px); } }
+
+/* ==========================================================================
+   LOCK SCREEN — shown before the credential vault is unlocked (see
+   POST /api/unlock, src/security/env_vault.py) and again, repurposed
+   with a plain message, while the app shuts down (js/app.js's
+   showShuttingDown()). Full-viewport, same treatment as .lightbox.
+   ========================================================================== */
+.lock-screen {
+  position: fixed; inset: 0; z-index: 70;
+  display: grid; place-items: center;
+  padding: var(--sp-5);
+  background: var(--bg-base);
+}
+
+.lock-card {
+  width: 100%; max-width: 360px;
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-lg);
+  padding: var(--sp-6) var(--sp-5);
+  display: flex; flex-direction: column; gap: var(--sp-4);
+}
+
+.lock-card__brand {
+  display: flex; align-items: center; gap: var(--sp-3);
+  margin-bottom: var(--sp-1);
+}
+.lock-card__brand .sidebar__logo { color: var(--accent); }
+.lock-card__brand h1 { font-size: var(--fs-lg); font-weight: 600; }
+
+.lock-card__subtitle {
+  font-size: var(--fs-sm); color: var(--text-muted);
+  margin-top: calc(-1 * var(--sp-2));
+  line-height: 1.5;
+}
+
+.lock-card__error {
+  font-size: var(--fs-sm); color: var(--critical);
+  background: var(--critical-dim);
+  border-radius: var(--radius-sm);
+  padding: var(--sp-2) var(--sp-3);
+}
+
+.lock-card__actions {
+  display: flex; justify-content: space-between; align-items: center; gap: var(--sp-2);
+  margin-top: var(--sp-1);
+}
+
+/* Repurposed for the "shutting down" message: no form fields, just a
+   centered line of text in the same card shell. */
+.lock-card--message {
+  align-items: center;
+  text-align: center;
+  color: var(--text-muted);
+  font-size: var(--fs-md);
+}

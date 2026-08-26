@@ -22,7 +22,7 @@ class ModelRegistry:
         with self._lock:
             model = self._models.get(key)
             if model is None:
-                model = YOLO(model_path)
+                model = YOLO(model_path).to(device)
                 self._models[key] = model
             return model
 

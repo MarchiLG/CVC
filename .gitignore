@@ -1,4 +1,5 @@
 .env
+.env.enc
 __pycache__/
 *.pyc
 venv/
@@ -6,3 +7,5 @@ venv/
 data/*.db
 *.pt
 *.onnx
+.pytest_cache/
+*.kate-swp

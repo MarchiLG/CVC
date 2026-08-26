@@ -14,7 +14,7 @@
 
 import { api } from '../api.js';
 import { t } from '../i18n.js';
-import { $, clear, el, formatCounts, setVisible } from '../ui.js';
+import { $, clear, el, formatCounts, guard, setVisible, toast } from '../ui.js';
 
 /** Presets of the quality <select>: "width:jpegQuality:fps". */
 function parseQuality(value) {
@@ -41,19 +41,24 @@ export const liveView = {
     this.qualitySelect.addEventListener('change', () => this.refreshStreams());
     this.overlayToggle.addEventListener('change', () => this.refreshStreams());
 
+    this.initAddCameraPanel();
     this.applyColumns();
   },
 
   /**
    * (Re)builds the grid when the camera list changes.
    * Called by the polling loop in app.js, but it only does real work
-   * when the ids changed — rebuilding every second would reopen all the
-   * streams and make the screen flicker.
+   * when the ids/names/hosts changed — rebuilding every second would
+   * reopen all the streams and make the screen flicker.
    */
   render(cameras) {
     const changed =
       cameras.length !== this.cameras.length ||
-      cameras.some((camera, index) => camera.id !== this.cameras[index]?.id);
+      cameras.some((camera, index) => {
+        const previous = this.cameras[index];
+        return !previous || camera.id !== previous.id
+          || camera.name !== previous.name || camera.host !== previous.host;
+      });
 
     if (changed) {
       this.cameras = cameras;
@@ -83,18 +88,46 @@ export const liveView = {
         onClick: () => this.openLightbox(camera),
       }, img);
 
+      // The camera's own web configuration page — deliberately subtle
+      // (faint, no blue "link" color) so it reads as metadata next to
+      // the name rather than as a call to action.
+      const hostLink = camera.host
+        ? el('a', {
+            class: 'camera-card__host',
+            href: `http://${camera.host}`,
+            target: '_blank',
+            rel: 'noopener noreferrer',
+            title: t('live.host_link_title', { host: camera.host }),
+            onClick: (event) => event.stopPropagation(),
+          }, camera.host)
+        : null;
+
+      const cog = el('button', {
+        type: 'button',
+        class: 'btn btn--ghost camera-card__cog',
+        title: t('live.camera_settings'),
+        onClick: (event) => { event.stopPropagation(); this.toggleSettings(camera); },
+      }, '⚙');
+
+      const settingsPanel = el('div', { class: 'camera-settings-panel', hidden: true });
+
       const card = el('article', { class: 'camera-card', dataset: { camera: camera.id } },
         el('header', { class: 'camera-card__header' },
           dot,
-          el('span', { class: 'camera-card__name' }, camera.name),
+          el('div', { class: 'camera-card__title' },
+            el('span', { class: 'camera-card__name' }, camera.name),
+            hostLink,
+          ),
+          cog,
           el('span', { class: 'camera-card__id' }, camera.id),
         ),
         video,
         footer,
+        settingsPanel,
       );
 
       this.grid.append(card);
-      this.cards.set(camera.id, { card, img, dot, footer });
+      this.cards.set(camera.id, { card, img, dot, footer, hostLink, settingsPanel });
       this.applyStreamSrc(camera.id, img);
     }
   },
@@ -181,6 +214,161 @@ export const liveView = {
     document.addEventListener('keydown', onKey);
   },
 
+  // ------------------------------------------------------------------ //
+  // Per-camera settings (the cog button): edit its connection details
+  // or delete it from cameras.yaml. There is no separate login for
+  // this — it lives behind the same encrypted-vault password the whole
+  // application already asked for at startup (see src/security/
+  // env_vault.py), so opening it just fetches and shows what is
+  // already in .env.
+  // ------------------------------------------------------------------ //
+  async toggleSettings(camera) {
+    const parts = this.cards.get(camera.id);
+    if (!parts) return;
+
+    const panel = parts.settingsPanel;
+    if (!panel.hidden) {
+      setVisible(panel, false);
+      return;
+    }
+
+    clear(panel);
+    setVisible(panel, true);
+
+    const detail = await guard(api.getCamera(camera.id));
+    if (!detail) {
+      setVisible(panel, false);
+      return;
+    }
+
+    clear(panel);
+    panel.append(this.renderSettingsForm(camera.id, detail));
+  },
+
+  renderSettingsForm(cameraId, detail) {
+    const field = (label, input) => el('label', { class: 'camera-settings-panel__field' },
+      el('span', {}, label), input);
+
+    const nameInput = el('input', { class: 'input input--sm', value: detail.name });
+    const protocolSelect = el('select', { class: 'input input--sm' },
+      ...['rtsp', 'http', 'https'].map((protocol) =>
+        el('option', { value: protocol, selected: protocol === detail.protocol }, protocol.toUpperCase())),
+    );
+    const hostInput = el('input', { class: 'input input--sm', value: detail.host });
+    const portInput = el('input', {
+      class: 'input input--sm', type: 'number', min: '1', max: '65535',
+      value: detail.port ?? '',
+    });
+    const pathInput = el('input', { class: 'input input--sm', value: detail.path ?? '' });
+    const usernameInput = el('input', { class: 'input input--sm', value: detail.username ?? '', autocomplete: 'off' });
+    const passwordInput = el('input', {
+      class: 'input input--sm', type: 'password', value: detail.password ?? '', autocomplete: 'new-password',
+    });
+    const enabledInput = el('input', { type: 'checkbox', checked: detail.enabled });
+
+    const saveBtn = el('button', { type: 'button', class: 'btn btn--sm btn--primary' }, t('live.camera_settings.save'));
+    const deleteBtn = el('button', { type: 'button', class: 'btn btn--sm btn--danger' }, t('live.camera_settings.delete'));
+
+    saveBtn.addEventListener('click', () => this.saveCameraSettings(cameraId, {
+      name: nameInput.value.trim(),
+      protocol: protocolSelect.value,
+      host: hostInput.value.trim(),
+      port: portInput.value ? Number(portInput.value) : null,
+      path: pathInput.value,
+      username: usernameInput.value,
+      password: passwordInput.value,
+      enabled: enabledInput.checked,
+    }));
+
+    deleteBtn.addEventListener('click', () => this.deleteCamera(cameraId, detail.name));
+
+    return el('div', { class: 'camera-settings-panel__form' },
+      el('h4', { class: 'camera-settings-panel__title' }, t('live.camera_settings.title', { name: detail.name })),
+      el('div', { class: 'camera-settings-panel__grid' },
+        field(t('live.add_camera.name'), nameInput),
+        field(t('live.add_camera.protocol'), protocolSelect),
+        field(t('live.add_camera.host'), hostInput),
+        field(t('live.add_camera.port'), portInput),
+        field(t('live.add_camera.username'), usernameInput),
+        field(t('live.add_camera.password'), passwordInput),
+        el('label', { class: 'camera-settings-panel__field camera-settings-panel__field--wide' },
+          el('span', {}, t('live.add_camera.path')), pathInput),
+      ),
+      el('label', { class: 'switch' },
+        enabledInput,
+        el('span', { class: 'switch__track' }, el('span', { class: 'switch__thumb' })),
+        t('live.add_camera.enabled'),
+      ),
+      el('div', { class: 'camera-settings-panel__actions' }, deleteBtn, saveBtn),
+    );
+  },
+
+  async saveCameraSettings(cameraId, payload) {
+    const result = await guard(api.updateCamera(cameraId, payload));
+    if (!result) return;
+
+    toast(t('live.camera_settings.saved', { name: result.name }), 'success');
+    const parts = this.cards.get(cameraId);
+    if (parts) setVisible(parts.settingsPanel, false);
+  },
+
+  async deleteCamera(cameraId, name) {
+    if (!window.confirm(t('live.camera_settings.confirm_delete', { name }))) return;
+
+    const result = await guard(api.deleteCamera(cameraId));
+    if (!result) return;
+
+    toast(t('live.camera_settings.deleted', { name }), 'success');
+  },
+
+  // ------------------------------------------------------------------ //
+  // "Add camera" panel, toggled by #live-add-camera-btn. The connection
+  // string is assembled server-side (POST /api/cameras) from the
+  // individual fields below, then written to cameras.yaml + the
+  // encrypted .env vault.
+  // ------------------------------------------------------------------ //
+  initAddCameraPanel() {
+    this.addCameraBtn = $('#live-add-camera-btn');
+    this.addCameraPanel = $('#live-add-camera-panel');
+
+    this.addCameraBtn.addEventListener('click', () => {
+      setVisible(this.addCameraPanel, this.addCameraPanel.hidden);
+    });
+    $('#live-add-camera-cancel').addEventListener('click', () => {
+      this.addCameraPanel.reset();
+      setVisible(this.addCameraPanel, false);
+    });
+    this.addCameraPanel.addEventListener('submit', (event) => {
+      event.preventDefault();
+      this.submitNewCamera();
+    });
+  },
+
+  async submitNewCamera() {
+    const name = $('#cam-new-name').value.trim();
+    const host = $('#cam-new-host').value.trim();
+    if (!name || !host) return;
+
+    const payload = {
+      id: $('#cam-new-id').value.trim() || null,
+      name,
+      protocol: $('#cam-new-protocol').value,
+      host,
+      port: $('#cam-new-port').value ? Number($('#cam-new-port').value) : null,
+      path: $('#cam-new-path').value,
+      username: $('#cam-new-username').value,
+      password: $('#cam-new-password').value,
+      enabled: $('#cam-new-enabled').checked,
+    };
+
+    const result = await guard(api.addCamera(payload));
+    if (!result) return;
+
+    toast(t('live.add_camera.added', { name: result.name }), 'success');
+    this.addCameraPanel.reset();
+    setVisible(this.addCameraPanel, false);
+  },
+
   /** Closes every stream — called when the browser tab goes away. */
   suspend() {
     for (const parts of this.cards.values()) {
@@ -208,6 +396,11 @@ export const liveView = {
       if (!parts) continue;
       parts.img.alt = t('live.video_alt', { name: camera.name });
       parts.card.querySelector('.camera-card__video').title = t('live.expand');
+      if (parts.hostLink) parts.hostLink.title = t('live.host_link_title', { host: camera.host });
+      // Closed rather than rebuilt in the new language: it is JS-built
+      // from a fresh fetch each time it opens (see toggleSettings), so
+      // reopening it already shows the right strings.
+      setVisible(parts.settingsPanel, false);
     }
     this.update(this.cameras);
   },

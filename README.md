@@ -26,6 +26,7 @@ Portuguese** — see [Language](#language).
 - [Architecture](#architecture)
 - [Installation](#installation)
 - [Configuration](#configuration)
+- [Camera credentials & encryption](#camera-credentials--encryption)
 - [Language](#language)
 - [Running](#running)
 - [Using the interface](#using-the-interface)
@@ -34,6 +35,7 @@ Portuguese** — see [Language](#language).
 - [Optional features](#optional-features)
 - [Tests](#tests)
 - [Where the files live](#where-the-files-live)
+- [Resetting the application](#resetting-the-application)
 - [Troubleshooting](#troubleshooting)
 
 ## Architecture
@@ -152,6 +154,16 @@ The initial dependency download (torch + ultralytics + insightface
 together) is over 1 GB, so the first run may take several minutes.
 Later runs just start the application.
 
+The very first time either interface actually **starts** (after `.env`
+has real credentials in it), it asks you to **choose a password**: that
+password encrypts `.env` into `.env.enc` and the plaintext `.env` is
+deleted. Every run after that asks for the same password to unlock it.
+**Where** it asks depends on the interface — the desktop GUI (`./run.sh`)
+still asks on the terminal, but the web interface (`./run-html.sh`) asks
+**in the browser itself**, specifically so `./run-html.sh` can be
+double-clicked from a file manager with no terminal involved at all. See
+[Camera credentials & encryption](#camera-credentials--encryption).
+
 To force reinstalling the dependencies (for example after editing
 `requirements.txt`):
 
@@ -170,6 +182,11 @@ cp .env.example .env
 python src/main.py          # desktop GUI
 python src/main_web.py      # web interface
 ```
+
+`python src/main.py` prompts for the credential-store password on the
+terminal before the window opens. `python src/main_web.py` does NOT —
+it starts the server immediately and the password is entered on the
+lock screen in the browser instead (see below).
 
 The web interface adds three lightweight packages (`fastapi`,
 `uvicorn`, `python-multipart`) — nothing compiled, a few seconds of
@@ -199,7 +216,7 @@ There are four configuration sources:
 
 | File | Contents |
 |---|---|
-| `.env` | camera credentials (never committed) |
+| `.env` → `.env.enc` | camera credentials, encrypted after the first run (never committed) — see [Camera credentials & encryption](#camera-credentials--encryption) |
 | `config/cameras.yaml` | which cameras exist, name, URL and the `enabled` flag |
 | `config/tasks.yaml` | what each camera is monitoring (vision tasks) |
 | `config/app.yaml` | global settings: language, device, database, LLM narrator, desktop notifications |
@@ -210,7 +227,16 @@ YAML's comments and formatting.
 
 ### Cameras (`.env` + `config/cameras.yaml`)
 
-Edit `.env` with the real credentials of each camera:
+The easiest way is the web interface: open the **Live** tab and click
+**+ Add camera**, which asks for the connection type (RTSP, HTTP/MJPEG,
+HTTPS/MJPEG), host, port, path and credentials and writes both files
+for you — see [Managing cameras from the Live
+tab](#managing-cameras-from-the-live-tab). What follows is the manual,
+by-hand equivalent of what that button does.
+
+Edit `.env` with the real credentials of each camera (on the very next
+start of the application, this file gets encrypted into `.env.enc` and
+removed — see the next section):
 
 ```
 CAM1_URL=rtsp://user:password@192.168.1.3:554/...
@@ -314,6 +340,65 @@ There are three independent models, each configured in one place:
    `llm.model` in `config/app.yaml` — it must be a model already pulled
    through Ollama (see [LLM narrator](#llm-narrator-optional)).
 
+## Camera credentials & encryption
+
+Camera credentials never sit on disk in plain text for long. The
+encryption logic lives in `src/security/env_vault.py`; **where** it asks
+for the password differs by interface:
+
+- **Desktop GUI** (`src/main.py`) — asks on the terminal, before the
+  window even opens, since a terminal is guaranteed to be there.
+- **Web interface** (`src/main_web.py`) — asks **in the browser**, on a
+  lock screen (`GET /api/lock` + `POST /api/unlock` in `src/web/api.py`).
+  The server itself starts immediately, with no prompt and no backend
+  yet (no cameras, no AppRuntime) — that is deliberate: it is what lets
+  `./run-html.sh` be **double-clicked** from a file manager with no
+  visible terminal at all. The browser opens automatically, shows the
+  lock screen, and only builds/starts the real backend once you submit
+  the password there.
+
+Both paths share the same underlying behavior:
+
+- **First run** — if `.env` exists and `.env.enc` does not, you are
+  asked to **choose a password** (twice, to confirm). It then encrypts
+  `.env`'s contents into `.env.enc` (AES via `cryptography`'s Fernet,
+  key derived with PBKDF2-HMAC-SHA256) and **deletes the plaintext
+  `.env`**.
+- **Every run after that** — you are asked for that same password to
+  unlock `.env.enc`. Get it wrong five times and the application shuts
+  itself down (on the web interface, this also stops the server — the
+  lock screen shows this happened, it does not just hang).
+- **The password itself is never written anywhere** — not to disk, not
+  to a config file, not logged. Only the key derived from it is kept,
+  in that process's memory, for as long as it keeps running. Restarting
+  the application means entering the password again.
+- That in-memory key is what lets the **Live** tab's *Add camera* panel
+  and each camera's cog-button settings menu (see [Managing cameras
+  from the Live tab](#managing-cameras-from-the-live-tab)) write new or
+  changed credentials into `.env.enc` **without asking for the password
+  again mid-session** — it only re-encrypts with the key already
+  unlocked at startup.
+- Losing the password means losing access to whatever is in
+  `.env.enc` — there is no recovery. Keep it somewhere safe (a password
+  manager), separate from the project.
+
+`.env.enc` is gitignored, same as `.env` used to be — it should never
+be committed.
+
+### Stopping the application
+
+Since `.env.enc`'s decrypted contents only ever live in memory (never
+written back to disk), simply killing the process loses nothing —
+**but** don't rely on that as your normal way to stop it: the desktop
+GUI closes normally through its window, and the web interface has an
+**Exit application** button at the bottom of the sidebar (`POST
+/api/shutdown` in `src/web/api.py`) specifically for when there is no
+terminal to `Ctrl+C` — again, the double-click case. It stops the
+camera/inference threads first, then the process itself, and is
+guaranteed to actually exit within a few seconds even if a camera is
+stuck reconnecting (a hard fallback forces the exit if the graceful
+shutdown takes too long).
+
 ## Language
 
 The interface is available in **English (the default) and
@@ -381,6 +466,12 @@ python src/main.py
 python src/main_web.py
 ```
 
+`./run-html.sh` needs no terminal interaction at all — after the first
+install, **double-clicking it from a file manager works**: it opens the
+browser, which shows the lock screen (password entry — see [Camera
+credentials & encryption](#camera-credentials--encryption)) instead of
+anything appearing on a terminal.
+
 Options for `run-html.sh` (any argument is passed through to
 `src/main_web.py`):
 
@@ -391,15 +482,24 @@ Options for `run-html.sh` (any argument is passed through to
 | `--no-browser` | do not open the browser automatically |
 | `--reinstall` | force reinstalling the dependencies |
 
-> **Careful with `--host 0.0.0.0`:** there is no authentication at all.
-> Anyone who can reach the port sees the live cameras and can change
-> the configuration. Use it only on a trusted network (or keep the
-> default `127.0.0.1`, which accepts connections from this machine
-> only).
+> **Careful with `--host 0.0.0.0`:** there is no authentication at all
+> once unlocked. The startup password (see [Camera credentials &
+> encryption](#camera-credentials--encryption)) protects `.env.enc`
+> itself — with `--host 0.0.0.0`, the lock screen (and its 5-attempt
+> guess limit) is also reachable from the network before that, but once
+> someone gets past it, or once you unlock it yourself, anyone who can
+> reach the port sees the live cameras and can add/edit/delete them,
+> same as sitting at the keyboard. Use it only on a trusted network (or
+> keep the default `127.0.0.1`, which accepts connections from this
+> machine only).
 
 Both interfaces can run at the same time, but each opens **its own**
 set of connections to the cameras (they are separate processes) — on a
 modest machine, prefer one at a time.
+
+To stop the web interface, use its **Exit application** button (sidebar
+footer) rather than closing the terminal or killing the process — see
+[Stopping the application](#stopping-the-application).
 
 ## Using the interface
 
@@ -418,7 +518,7 @@ Differences between the two:
 | | Desktop (`./run.sh`) | Web (`./run-html.sh`) |
 |---|---|---|
 | Saving a task | writes to `tasks.yaml`; takes effect on the **next run** | writes and **reloads the pipelines immediately** (*Apply now* button) |
-| Live | a fixed grid | adjustable columns and quality; click to expand a camera |
+| Live | a fixed grid | adjustable columns and quality; click to expand a camera; add/edit/delete cameras in place (see below) |
 | Calibration | points drawn on a `QGraphicsScene` | numbered points on a `<canvas>`, with the already-saved geometry dashed underneath |
 | Language | follows `app.yaml`, needs a restart | picker in the sidebar, switches instantly |
 | Remote access | no | yes, with `--host 0.0.0.0` (no authentication — see the warning under [Running](#running)) |
@@ -450,6 +550,31 @@ through `t('key')`. That is what lets the language picker work without
 a reload; text typed directly into the markup would simply never
 translate.
 
+### Managing cameras from the Live tab
+
+Each camera card's header shows its host/IPv4 next to the name, as a
+deliberately understated link (no "link blue", underline only on
+hover) that opens `http://<host>` in a new tab — the camera's own
+manufacturer web UI, for when you need its native configuration page
+rather than this application's.
+
+**+ Add camera**, above the grid, opens a form for the connection type
+(RTSP, HTTP/MJPEG or HTTPS/MJPEG), host, port, path and credentials.
+Submitting it (`POST /api/cameras`) builds the connection string on the
+server, writes the credential into `.env.enc` and the camera into
+`config/cameras.yaml`, and starts streaming it immediately — no
+restart.
+
+The **⚙ cog button** on each card opens that camera's settings, prefilled
+from `.env.enc` (name, connection type, host, port, path, username,
+password, enabled). There is no separate login for this panel: it
+lives behind the same startup password as the rest of the application
+(see [Camera credentials & encryption](#camera-credentials--encryption)).
+**Save** rewrites both `cameras.yaml` and `.env.enc` and reopens the
+camera's stream with the new details; **Delete camera** removes it from
+`cameras.yaml`, stops its stream, and removes its credential from
+`.env.enc`.
+
 ### How the video reaches the browser
 
 Each camera is an `<img>` pointing at `/api/cameras/<id>/stream`, which
@@ -474,11 +599,15 @@ be tried from the browser). The main ones:
 
 | Route | Purpose |
 |---|---|
+| `GET /api/lock` | whether the credential vault is locked, and whether this is a first run — polled once before anything else |
+| `POST /api/unlock` | the lock screen's password submission; builds and starts the real backend on success |
+| `POST /api/shutdown` | the "Exit application" button — stops the backend and terminates the process |
 | `GET /api/state` | cameras + alerts + summary, in one request (this is what the UI polls) |
 | `GET /api/system` | device, notification channels, counts |
 | `GET /api/i18n` | translation catalog + available languages |
 | `GET /api/cameras/<id>/stream` | live MJPEG video (`?width=&quality=&fps=&overlay=`) |
 | `GET /api/cameras/<id>/snapshot` | a single JPEG frame (calibration uses `?width=0&overlay=false`) |
+| `GET/POST/PATCH/DELETE /api/cameras[/<id>]` | reading and editing `cameras.yaml` + the `.env.enc` vault — powers the Live tab's *Add camera* panel and per-camera settings (cog button) |
 | `GET/POST/PATCH/DELETE /api/cameras/<id>/tasks[...]` | reading and editing `tasks.yaml` |
 | `POST /api/cameras/<id>/tasks/<i>/geometry` | saves the line/zone drawn during calibration |
 | `POST /api/reload` | rebuilds the pipelines with the current `tasks.yaml`, no restart |
@@ -486,7 +615,9 @@ be tried from the browser). The main ones:
 
 Errors answer with `{"detail": "<english text>", "code": "<key>"}` —
 the browser translates `code` and falls back to `detail` when it does
-not recognize it.
+not recognize it. Every route except `/api/lock`, `/api/unlock`,
+`/api/shutdown` and `/api/i18n` answers `423` (`api.locked`) until
+`POST /api/unlock` succeeds — there is no `AppRuntime` before that.
 
 ## Available vision tasks
 
@@ -581,10 +712,31 @@ model on the first run, when they are not cached yet.
 | Location | Contents |
 |---|---|
 | `data/app.db` | SQLite: employees, face embeddings, event log, narration log (gitignored) |
+| `.env.enc` | Encrypted camera credentials (gitignored) — see [Camera credentials & encryption](#camera-credentials--encryption) |
 | `~/.insightface/models/` | Downloaded face recognition models (`buffalo_s`/`buffalo_l`), cached between runs |
 | `*.pt` in the project root | Downloaded YOLO weights (e.g. `yolov8n.pt`), cached between runs (gitignored) |
 | `src/web/static/` | HTML, CSS and JS of the web interface — this is where you edit the looks |
 | `src/i18n.py` | Wording of both interfaces, in English and Portuguese |
+
+## Resetting the application
+
+```bash
+./reset.sh                 # asks for confirmation, then resets
+./reset.sh --yes           # skips the confirmation prompt
+./reset.sh --purge-config  # ALSO deletes cameras.yaml/tasks.yaml/app.yaml
+./reset.sh --purge-models  # ALSO deletes downloaded *.pt / *.onnx weights
+```
+
+Wipes `.venv/`, every `__pycache__/`/`.pytest_cache/`, `data/*.db` and
+the camera credentials (`.env`/`.env.enc`) — everything generated or
+local that `./run.sh`/`./run-html.sh` will recreate on the next start.
+`config/cameras.yaml`, `config/tasks.yaml`, `config/app.yaml` and the
+downloaded model weights are kept unless you pass `--purge-config` /
+`--purge-models`, since redoing those is expensive.
+
+**The camera credentials are not recoverable after this** — there is no
+backup of the password or of `.env.enc`'s contents. Note down your
+camera URLs/credentials first if you have not saved them elsewhere.
 
 ## Troubleshooting
 
@@ -605,8 +757,42 @@ NVIDIA GPU, install the CUDA build of torch first (see
 `onnxruntime-gpu` — the two are mutually exclusive, install only one.
 
 **A camera never connects / the interface shows "waiting for connection..."**
-Check the RTSP URL and the credentials in `.env`, and whether the
-camera is reachable on the network (e.g. `nc -zv <ip> 554`).
+Check the RTSP URL and the credentials (edit them from the cog button
+on the camera's card, or in `.env`/`.env.enc`), and whether the camera
+is reachable on the network (e.g. `nc -zv <ip> 554`).
+
+**"Wrong password" at startup / forgot the credential-store password**
+There is no recovery — see [Camera credentials &
+encryption](#camera-credentials--encryption). Five wrong attempts shut
+the application down (on the web interface, the lock screen shows this
+and the server stops); run `./run.sh`/`./run-html.sh` again to retry.
+If the password is truly lost, `./reset.sh` (see [Resetting the
+application](#resetting-the-application)) removes `.env.enc` so you can
+start over, but the credentials in it are gone for good.
+
+**The web interface is stuck on the lock screen / never shows the dashboard**
+Check that `POST /api/unlock` is actually succeeding — open the
+browser's dev tools (Network tab) and retry. A `423` on other routes
+before that is expected (see [API routes](#api-routes)): there is no
+backend at all until the vault unlocks, by design — that's what lets
+the process start with no terminal prompt in the first place.
+
+**Clicking "Exit application" doesn't seem to do anything**
+It does — the button disables itself and the page switches to a
+"Shutting down…" screen, but there is no toast because the connection
+that would show one drops as the process exits. Give it a few seconds:
+`POST /api/shutdown` stops the server gracefully and, if a camera is
+stuck reconnecting and that takes too long, force-exits shortly after
+as a fallback either way (see [Stopping the
+application](#stopping-the-application)).
+
+**`Credential store is locked` from the API**
+The vault in `src/security/env_vault.py` was never unlocked — normal
+while the web interface's lock screen is still showing (see above).
+Outside of that, it can happen if `web.server.create_web_app()` is
+imported and run some other way without ever calling `POST
+/api/unlock` or `security.env_vault.unlock_interactive()`. Restart
+through the normal entry points.
 
 **`Camera 'camX' has no pipeline: ...` in the log**
 That camera's task requires geometry and has not been calibrated yet
