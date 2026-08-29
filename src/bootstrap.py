@@ -22,7 +22,7 @@ import logging
 import os
 
 from camera.camera_manager import CameraManager
-from config.loader import load_app_config, load_tasks_config
+from config.loader import load_app_config, load_tasks_config, load_triggers_config
 from config.schema import AppSettings, CameraConfig
 from db.session import init_db
 from notify.flag_manager import FlagManager
@@ -30,12 +30,17 @@ from notify.notifiers.log_notifier import LogNotifier
 from pipeline.builder import build_pipelines
 from pipeline.inference_engine import InferenceEngine
 from pipeline.results_store import ResultsStore
+from triggers.engine import TriggerEngine
 
 # Importing the "tasks" package registers the built-in TaskAnalyzers
 # (item counting, PPE, missing product, face_id — see tasks/__init__.py)
 # so the types used in tasks.yaml are recognized when the pipelines are
 # assembled.
 import tasks  # noqa: F401
+
+# Same idea for the trigger action backends (mqtt, modbus_tcp,
+# http_webhook — see triggers/actions/__init__.py).
+import triggers.actions  # noqa: F401
 
 logger = logging.getLogger("cv_central.bootstrap")
 
@@ -46,6 +51,7 @@ CONFIG_DIR = os.path.join(os.path.dirname(__file__), "..", "config")
 CAMERAS_CONFIG_PATH = os.path.join(CONFIG_DIR, "cameras.yaml")
 TASKS_CONFIG_PATH = os.path.join(CONFIG_DIR, "tasks.yaml")
 APP_CONFIG_PATH = os.path.join(CONFIG_DIR, "app.yaml")
+TRIGGERS_CONFIG_PATH = os.path.join(CONFIG_DIR, "Triggers.yaml")
 
 
 class AppRuntime:
@@ -66,6 +72,8 @@ class AppRuntime:
         app_settings: AppSettings,
         tasks_yaml_path: str,
         cameras_yaml_path: str,
+        trigger_engine: TriggerEngine,
+        triggers_yaml_path: str,
         narrator=None,
     ):
         self.camera_manager = camera_manager
@@ -75,6 +83,8 @@ class AppRuntime:
         self.app_settings = app_settings
         self.tasks_yaml_path = tasks_yaml_path
         self.cameras_yaml_path = cameras_yaml_path
+        self.trigger_engine = trigger_engine
+        self.triggers_yaml_path = triggers_yaml_path
         self.narrator = narrator
 
         self._started = False
@@ -88,11 +98,13 @@ class AppRuntime:
         cameras_yaml_path: str = CAMERAS_CONFIG_PATH,
         tasks_yaml_path: str = TASKS_CONFIG_PATH,
         app_yaml_path: str = APP_CONFIG_PATH,
+        triggers_yaml_path: str = TRIGGERS_CONFIG_PATH,
     ) -> "AppRuntime":
-        """Reads the three configuration sources and assembles the whole
+        """Reads the configuration sources and assembles the whole
         backend — without starting any thread yet (that is start())."""
         app_settings = load_app_config(app_yaml_path)
         tasks_by_camera = load_tasks_config(tasks_yaml_path)
+        triggers_settings = load_triggers_config(triggers_yaml_path)
 
         # Always initialized (employees/face embeddings depend on it,
         # see db/session.py) — app.yaml -> db.enabled only controls the
@@ -102,6 +114,9 @@ class AppRuntime:
         camera_manager = CameraManager(cameras_yaml_path)
         flag_manager = FlagManager(notifiers=cls._build_notifiers(app_settings))
         results_store = ResultsStore()
+
+        trigger_engine = TriggerEngine(triggers_settings)
+        flag_manager.add_listener(trigger_engine.on_flag)
 
         camera_ids = [camera_id for camera_id, _name in camera_manager.list_cameras()]
         pipelines, fps_by_camera = build_pipelines(
@@ -115,6 +130,8 @@ class AppRuntime:
             flag_manager=flag_manager,
             engine=engine,
             app_settings=app_settings,
+            trigger_engine=trigger_engine,
+            triggers_yaml_path=triggers_yaml_path,
             tasks_yaml_path=tasks_yaml_path,
             cameras_yaml_path=cameras_yaml_path,
             narrator=cls._build_narrator(app_settings, flag_manager),
@@ -224,6 +241,12 @@ class AppRuntime:
         logger.info("Pipelines reloaded from %s: %d active.",
                     self.tasks_yaml_path, len(pipelines))
         return len(pipelines)
+
+    def reload_triggers(self) -> None:
+        """Re-reads Triggers.yaml and swaps the TriggerEngine's rules in
+        place, without restarting anything — used by the web UI after
+        saving a trigger rule or flipping the ask/auto mode toggle."""
+        self.trigger_engine.reload(load_triggers_config(self.triggers_yaml_path))
 
     # ------------------------------------------------------------------ #
     # Camera registry changes (config/cameras.yaml), at runtime

@@ -32,12 +32,13 @@ import { calibrationView } from './views/calibration.js';
 import { employeesView } from './views/employees.js';
 import { liveView } from './views/live.js';
 import { settingsView } from './views/settings.js';
+import { triggersView } from './views/triggers.js';
 
 /** Polling interval for /api/state, in ms. */
 const POLL_INTERVAL = 1000;
 
-/** The four screens, in the order they appear in the sidebar. */
-const VIEWS = ['live', 'calibration', 'settings', 'employees'];
+/** The five screens, in the order they appear in the sidebar. */
+const VIEWS = ['live', 'calibration', 'settings', 'employees', 'triggers'];
 
 const app = {
   currentView: 'live',
@@ -90,6 +91,7 @@ const app = {
     calibrationView.init();
     settingsView.init();
     employeesView.init();
+    triggersView.init();
 
     this.bindNavigation();
     this.bindAlertsPanel();
@@ -246,6 +248,7 @@ const app = {
       calibrationView.retranslate();
       settingsView.retranslate();
       employeesView.retranslate();
+      triggersView.retranslate();
       this.renderAlerts(this.lastAlerts ?? []);
       this.renderSystemStatus();
     });
@@ -293,6 +296,7 @@ const app = {
     if (name === 'settings') settingsView.loadTasks();
     if (name === 'calibration') calibrationView.loadTasks();
     if (name === 'employees') employeesView.loadEmployees();
+    if (name === 'triggers') triggersView.load();
   },
 
   /** Title and subtitle of the header, for the active screen. */
@@ -306,10 +310,14 @@ const app = {
   // ------------------------------------------------------------------ //
   async loadStaticData() {
     try {
-      const [system, taskTypes] = await Promise.all([api.getSystem(), api.getTaskTypes()]);
+      const [system, taskTypes, triggerActionTypes] = await Promise.all([
+        api.getSystem(), api.getTaskTypes(), api.getTriggerActionTypes(),
+      ]);
       this.system = system;
       this.renderSystemStatus();
       settingsView.setTaskTypes(taskTypes);
+      triggersView.setTaskTypes(taskTypes);
+      triggersView.setActionTypes(triggerActionTypes);
     } catch (error) {
       toast(error.message, 'error');
     }
@@ -346,7 +354,13 @@ const app = {
         calibrationView.setCameras(state.cameras);
         settingsView.setCameras(state.cameras);
         employeesView.setCameras(state.cameras);
+        triggersView.setCameras(state.cameras);
       }
+
+      // Pending trigger approvals only matter in "ask" mode and only
+      // while that screen is open — triggersView.pollPending() itself
+      // no-ops when mode is "auto", so this stays cheap otherwise.
+      if (this.currentView === 'triggers') triggersView.pollPending();
 
       $('#status-cameras').textContent = state.cameras.filter((c) => c.connected).length
         + '/' + state.cameras.length;

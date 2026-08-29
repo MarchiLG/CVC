@@ -25,6 +25,7 @@ const NOTIFY_CHANNELS = ['log', 'desktop', 'db'];
 
 export const settingsView = {
   taskTypes: [],
+  modelsByKind: {},
 
   init() {
     this.cameraSelect = $('#settings-camera');
@@ -63,11 +64,25 @@ export const settingsView = {
     const tasks = await guard(api.getTasks(this.cameraId));
     if (!tasks) return;
 
+    await this.loadModelsFor(tasks);
+
     clear(this.list);
     setVisible(this.empty, tasks.length === 0);
 
     for (const task of tasks) {
       this.list.append(this.renderTask(task));
+    }
+  },
+
+  /** Fetches models/<kind>/ for every distinct model_kind these tasks
+   *  need (skipping "none" — those tasks manage their own model and get
+   *  no picker), caching each kind's list across calls. */
+  async loadModelsFor(tasks) {
+    const kinds = new Set(tasks.map((task) => task.model_kind).filter((kind) => kind && kind !== 'none'));
+    for (const kind of kinds) {
+      if (this.modelsByKind[kind]) continue;
+      const result = await guard(api.getModels(kind));
+      this.modelsByKind[kind] = result?.[kind] ?? [];
     }
   },
 
@@ -97,13 +112,32 @@ export const settingsView = {
         fpsInput,
         el('span', { class: 'panel__hint', style: 'margin:0' }, t('settings.detect_fps_hint')),
       ),
-      el('div', { class: 'field' },
-        el('label', {}, t('settings.model')),
-        el('input', { type: 'text', class: 'input', value: task.model ?? '', disabled: true,
-                      placeholder: t('settings.model_placeholder') }),
-        el('span', { class: 'panel__hint', style: 'margin:0' }, t('settings.model_hint')),
-      ),
     );
+
+    if (task.model_kind && task.model_kind !== 'none') {
+      const available = this.modelsByKind[task.model_kind] ?? [];
+      const options = [
+        { value: '', label: t('settings.model_placeholder') },
+        ...available.map((path) => ({ value: path, label: path })),
+      ];
+      const missing = task.model && !available.includes(task.model);
+      if (missing) {
+        options.push({ value: task.model, label: `${task.model} (${t('settings.model_missing')})` });
+      }
+
+      const modelSelect = el('select', { class: 'input' });
+      fillSelect(modelSelect, options);
+      modelSelect.value = task.model ?? '';
+      refs.model = modelSelect;
+
+      body.append(el('div', { class: 'field' },
+        el('label', {}, t('settings.model')),
+        modelSelect,
+        el('span', { class: 'panel__hint', style: 'margin:0' }, t('settings.model_hint')),
+        missing && el('div', { class: 'notice notice--warning' },
+          t('settings.model_missing_warning', { path: task.model })),
+      ));
+    }
 
     // required_ppe only exists on ppe_compliance — the dedicated editor
     // shows up for that type alone; the remaining params land in the
@@ -250,6 +284,13 @@ export const settingsView = {
           ...task.params,
           required_ppe: splitList(refs.requiredPpe.value),
         };
+      }
+
+      // Empty string ("device default") clears the model: field in
+      // tasks.yaml, falling back to vision.model_size_override/device
+      // defaults — see config/writer.py's set_task_model().
+      if (refs.model) {
+        patch.model = refs.model.value;
       }
 
       const saved = await guard(api.updateTask(this.cameraId, task.index, patch));

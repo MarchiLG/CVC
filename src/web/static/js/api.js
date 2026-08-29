@@ -137,8 +137,13 @@ export const api = {
   // Tasks (config/tasks.yaml)
   // ---------------------------------------------------------------- //
 
-  /** Available types + the geometry kind of each one. */
+  /** Available types + the geometry kind and model_kind of each one. */
   getTaskTypes: () => request('/api/task-types'),
+
+  /** Model files under models/<kind>/, for the settings screen's model
+   *  picker. Pass a ModelKind value ("detection", "segmentation", ...). */
+  getModels: (modelType) =>
+    request(`/api/models?model_type=${encodeURIComponent(modelType)}`),
 
   getTasks: (cameraId) => request(`/api/cameras/${encodeURIComponent(cameraId)}/tasks`),
 
@@ -218,4 +223,38 @@ export const api = {
     if (file) form.append('photo', file);
     return request('/api/employees', { method: 'POST', body: form });
   },
+
+  // ---------------------------------------------------------------- //
+  // Triggers (config/Triggers.yaml)
+  // ---------------------------------------------------------------- //
+
+  /** Protocol backends registered in triggers/actions/ — mqtt/modbus_tcp
+   *  only appear when their optional dependency is installed. */
+  getTriggerActionTypes: () => request('/api/triggers/action-types'),
+
+  getTriggerMode: () => request('/api/triggers/mode'),
+
+  setTriggerMode: (mode) => sendJson('/api/triggers/mode', 'PATCH', { mode }),
+
+  getTriggers: () => request('/api/triggers'),
+
+  addTrigger: (rule) => sendJson('/api/triggers', 'POST', rule),
+
+  /** Absent fields are left untouched, same convention as updateTask. */
+  updateTrigger: (ruleId, patch) =>
+    sendJson(`/api/triggers/${encodeURIComponent(ruleId)}`, 'PATCH', patch),
+
+  deleteTrigger: (ruleId) =>
+    request(`/api/triggers/${encodeURIComponent(ruleId)}`, { method: 'DELETE' }),
+
+  /** Re-reads Triggers.yaml into the live TriggerEngine, no restart. */
+  reloadTriggers: () => request('/api/triggers/reload', { method: 'POST' }),
+
+  getPendingTriggers: () => request('/api/triggers/pending'),
+
+  approvePendingTrigger: (pendingId) =>
+    request(`/api/triggers/pending/${encodeURIComponent(pendingId)}/approve`, { method: 'POST' }),
+
+  denyPendingTrigger: (pendingId) =>
+    request(`/api/triggers/pending/${encodeURIComponent(pendingId)}/deny`, { method: 'POST' }),
 };

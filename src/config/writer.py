@@ -54,11 +54,25 @@ class TasksYamlWriter:
         tasks[task_index]["detect_fps"] = detect_fps
         self.save()
 
+    def set_task_model(self, camera_id: str, task_index: int, model: str | None, model_type: str | None = None):
+        tasks = self.get_tasks(camera_id)
+        task = tasks[task_index]
+        if model:
+            task["model"] = model
+        elif "model" in task:
+            del task["model"]
+        if model_type:
+            task["model_type"] = model_type
+        elif "model_type" in task:
+            del task["model_type"]
+        self.save()
+
     def add_task(
         self,
         camera_id: str,
         task_type: str,
         model: str | None = None,
+        model_type: str | None = None,
         detect_fps: float = 5.0,
         params: dict | None = None,
         flags: list[dict] | None = None,
@@ -74,6 +88,8 @@ class TasksYamlWriter:
         new_task["type"] = task_type
         if model:
             new_task["model"] = model
+        if model_type:
+            new_task["model_type"] = model_type
         new_task["detect_fps"] = detect_fps
         new_task["params"] = params or {}
         new_task["flags"] = flags or []

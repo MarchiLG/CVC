@@ -1,7 +1,10 @@
 # Vision tasks per camera. "type" must be registered in
 # tasks/registry.py — the built-ins (auto-registered when the "tasks"
 # package is imported, see tasks/__init__.py) are:
-#   item_counting, ppe_compliance, missing_product, face_id
+#   item_counting, ppe_compliance, missing_product, print_monitor,
+#   face_id, car_identification (the last two need optional
+#   dependencies — see requirements.txt — and disappear from
+#   GET /api/task-types when those aren't installed)
 #
 # The line/zone coordinates below are illustrative examples (assuming a
 # ~1920x1080 frame) — use the Calibration screen of either interface to
@@ -9,7 +12,11 @@
 
 cameras:
   cam1:
-    tasks: []
+    tasks:
+      - type: print_monitor
+        detect_fps: 5.0
+        params: {}
+        flags: []
       #- type: item_counting
       #  detect_fps: 5
       #  params:

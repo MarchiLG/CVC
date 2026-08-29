@@ -62,9 +62,25 @@ SQLAlchemy
 onnxruntime
 insightface
 
+# Car identification task (trademark classification via a YOLO
+# classify checkpoint + OCR license plate reading). Optional — without
+# it, car_identification simply does not appear in the task-type list
+# (see tasks/__init__.py); the rest of the application is unaffected.
+easyocr
+
 # Alert narrator through a local LLM. The "ollama" package here is only
 # the Python client — the Ollama service itself is an external
 # prerequisite (not installed through pip), see the README. Without the
 # service running, the narrator fails quietly and simply produces no
 # summaries (see llm/ollama_client.py).
 ollama
+
+# Triggers — condition -> action rules that fire on Flags and drive
+# external IO (src/triggers/). requests backs the always-available
+# http_webhook action; paho-mqtt and pymodbus are optional and back the
+# mqtt/modbus_tcp actions respectively — missing either one just drops
+# that action type from GET /api/triggers/action-types (see
+# triggers/actions/__init__.py).
+requests
+paho-mqtt
+pymodbus

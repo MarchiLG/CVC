@@ -73,3 +73,31 @@ def test_recent_returns_most_recent_flags_up_to_limit():
     recent = manager.recent(limit=2)
 
     assert [f.flag_id for f in recent] == ["flag3", "flag4"]
+
+
+def test_listener_fires_on_every_emit():
+    manager = FlagManager(notifiers={"recording": RecordingNotifier()})
+    seen = []
+    manager.add_listener(seen.append)
+
+    manager.emit(_make_flag(timestamp=100.0))
+    manager.emit(_make_flag(timestamp=101.0))
+
+    assert len(seen) == 2
+
+
+def test_listener_fires_even_when_notify_channel_dispatch_is_debounced():
+    """The key regression this proves: a trigger rule (via add_listener)
+    must not be silently throttled by the SAME cooldown that limits how
+    often a notify channel (log/desktop/db) re-announces the same alert —
+    see flag_manager.py's module docstring."""
+    notifier = RecordingNotifier()
+    manager = FlagManager(notifiers={"recording": notifier}, cooldown_seconds=30.0)
+    seen = []
+    manager.add_listener(seen.append)
+
+    manager.emit(_make_flag(timestamp=100.0))
+    manager.emit(_make_flag(timestamp=110.0))  # within cooldown -> notifier is debounced
+
+    assert len(notifier.received) == 1  # channel dispatch WAS debounced
+    assert len(seen) == 2  # but the listener still saw both

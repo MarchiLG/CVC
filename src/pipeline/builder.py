@@ -1,34 +1,52 @@
 """
 builder.py
 
-Assembles the "real" CameraPipeline (Detector + YOLO Tracker) from
-TaskConfig and AppSettings. Cameras without any task assigned in
-tasks.yaml produce no pipeline — there is nothing to infer.
+Assembles the "real" CameraPipeline (per-task Detector + Tracker
+engines) from TaskConfig and AppSettings. Cameras without any task
+assigned in tasks.yaml produce no pipeline — there is nothing to infer.
 
-All tasks of one camera share a single Detector (and therefore a single
-YOLO model): the model is picked from the first TaskConfig that defines
-"model", or from the default for the resolved device when none does.
+Each task resolves to a (model_path, ModelKind) pair (tasks/model_kinds.py);
+tasks that resolve to the SAME pair share one Detector+Tracker engine
+(this is what keeps today's common case — no task sets an explicit
+`model` — behaviorally identical to the old single-shared-detector
+design). A task whose kind is ModelKind.NONE (self-managed inference,
+e.g. face_id) gets no engine at all. A configured model whose actual
+Ultralytics task doesn't match what the TaskAnalyzer declares raises
+ValueError, which build_pipelines()'s per-camera try/except turns into
+"this camera has no pipeline" rather than an app-wide crash.
 """
 
 import logging
 
 from config.schema import AppSettings, TaskConfig
 from notify.flag_manager import FlagManager
+from tasks.model_kinds import model_kind_for
 from vision.detector import Detector
 from vision.device import default_model_for_device, resolve_device
+from vision.model_kind import ModelKind
 from vision.model_registry import ModelRegistry, default_registry
+from vision.results import ObbTrack, PoseTrack, SegmentationTrack
 from vision.tracker import Tracker
+from vision.types import Track
 
 from .camera_pipeline import CameraPipeline
 
 logger = logging.getLogger("cv_central.pipeline.builder")
 
+_TRACK_CLS_BY_KIND = {
+    ModelKind.DETECTION: Track,
+    ModelKind.OBB: ObbTrack,
+    ModelKind.SEGMENTATION: SegmentationTrack,
+    ModelKind.POSE: PoseTrack,
+}
 
-def _pick_model_path(task_configs: list[TaskConfig], device: str, app_settings: AppSettings) -> str:
-    for task in task_configs:
-        if task.model:
-            return task.model
-    return default_model_for_device(device, app_settings.vision.model_size_override)
+
+def _resolve_model_spec(task: TaskConfig, device: str, app_settings: AppSettings):
+    kind = model_kind_for(task)
+    if kind is ModelKind.NONE:
+        return None
+    model_path = task.model or default_model_for_device(device, app_settings.vision.model_size_override)
+    return model_path, kind
 
 
 def build_camera_pipeline(
@@ -43,17 +61,37 @@ def build_camera_pipeline(
 
     registry = registry or default_registry
     device = resolve_device(app_settings.vision.device)
-    model_path = _pick_model_path(task_configs, device, app_settings)
 
-    detector = Detector(model_path=model_path, device=device, registry=registry)
-    tracker = Tracker()
+    engines: dict[tuple[str, ModelKind], tuple[Detector, Tracker]] = {}
+    task_engine_key: dict[int, tuple[str, ModelKind] | None] = {}
+
+    for index, task in enumerate(task_configs):
+        spec = _resolve_model_spec(task, device, app_settings)
+        task_engine_key[index] = spec
+        if spec is None:
+            continue
+
+        model_path, kind = spec
+        if spec in engines:
+            continue
+
+        actual_kind = registry.kind_of(model_path, device)
+        if actual_kind != kind:
+            raise ValueError(
+                f"Task '{task.type}' requires a {kind.value} model but "
+                f"'{model_path}' is a {actual_kind.value} model."
+            )
+
+        detector = Detector(model_path=model_path, device=device, registry=registry, kind=kind)
+        tracker = Tracker(track_cls=_TRACK_CLS_BY_KIND.get(kind, Track))
+        engines[spec] = (detector, tracker)
 
     return CameraPipeline(
         camera_id,
         task_configs,
         flag_manager,
-        detect_fn=detector.detect,
-        track_fn=tracker.update,
+        engines=engines,
+        task_engine_key=task_engine_key,
     )
 
 

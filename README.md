@@ -1,10 +1,14 @@
 # Computer Vision Central
 
 Python application for monitoring multiple IP cameras with computer
-vision: object detection and tracking (YOLO), employee face
-recognition, item counting, PPE compliance checks, missing-product
-detection, notifications (log, desktop and/or database) and
-natural-language summaries produced by a local LLM through Ollama.
+vision: object detection and tracking (YOLO, with detection/OBB/
+segmentation/pose/classification support), employee face recognition,
+item counting, PPE compliance checks, missing-product detection, car
+identification (trademark/color/plate), 3D-print failure monitoring,
+notifications (log, desktop and/or database), condition → action
+triggers that drive external IO devices (MQTT, Modbus TCP, HTTP
+webhook), and natural-language summaries produced by a local LLM
+through Ollama.
 
 There are **two interfaces** on top of the same backend, and you pick
 which one to use when you start it:
@@ -32,6 +36,7 @@ Portuguese** — see [Language](#language).
 - [Using the interface](#using-the-interface)
 - [Web interface](#web-interface)
 - [Available vision tasks](#available-vision-tasks)
+- [Triggers](#triggers)
 - [Optional features](#optional-features)
 - [Tests](#tests)
 - [Where the files live](#where-the-files-live)
@@ -210,6 +215,40 @@ By default, `requirements.txt` installs the CPU variants of `torch` and
 Device detection at runtime (`vision/device.py`) is automatic; the
 correct wheel for the GPU still has to be installed per machine.
 
+On Arch/CachyOS, skip the pip CUDA wheels for `torch`/`torchvision`/
+`onnxruntime` entirely — install `python-pytorch-cuda`,
+`python-torchvision-cuda` and `python-onnxruntime-cuda` via `pacman`
+instead (they track the driver's CUDA version and avoid pip/pacman
+conflicts), and create `.venv` with `python3 -m venv
+--system-site-packages .venv` so it can see them. `pip install -r
+requirements.txt` then leaves those three alone ("Requirement already
+satisfied") instead of pulling CPU wheels on top.
+
+**Adding `easyocr` (for `car_identification`) on that same setup**: a
+plain `pip install easyocr` resolves its own `torch`/`torchvision`
+requirement and can try to replace the pacman-installed CUDA build
+with a CPU wheel inside the `--system-site-packages` venv — exactly the
+kind of conflict a stuck `pacman -Syu` transaction involving
+`python-torchvision-cuda` can also surface (e.g. a build tool like
+`python-maturin` insisting on a CPU package to satisfy a version
+constraint). Avoid it by installing `easyocr` without letting pip touch
+torch:
+
+```bash
+.venv/bin/pip install --no-deps easyocr
+.venv/bin/pip install python-bidi scikit-image Shapely pyclipper ninja Pillow
+```
+
+Then confirm CUDA is still intact before relying on it:
+
+```bash
+.venv/bin/python -c "import torch; print(torch.__version__, torch.cuda.is_available())"
+```
+
+If pip did overwrite the CUDA build, reinstall it — `sudo pacman -S
+python-pytorch-cuda python-torchvision-cuda` — from your own terminal
+(not run non-interactively), since it needs your `sudo` password.
+
 ## Configuration
 
 There are four configuration sources:
@@ -312,15 +351,30 @@ warning and falls back to CPU automatically — it does not crash.
 
 ### Models
 
+Every Ultralytics checkpoint lives under `models/<kind>/` at the
+project root, one folder per model kind: `models/detection/`,
+`models/obb/`, `models/segmentation/`, `models/pose/`,
+`models/classification/`. Which kind a task needs is fixed by its type
+(`src/tasks/model_kinds.py`) — `item_counting`/`ppe_compliance`/
+`missing_product`/`car_identification` need `detection`,
+`print_monitor` needs `segmentation`, `face_id` manages its own model
+and needs none. The web UI's Settings screen offers a model picker
+scoped to the right folder for each task; picking one (or leaving it on
+"device default") writes the `model:` field in `config/tasks.yaml`.
+Placing a checkpoint whose actual kind doesn't match what the task
+expects (e.g. a segmentation model under a `detection`-kind task) makes
+that camera's pipeline fail to build, logged with the mismatch —
+it does not crash the application.
+
 There are three independent models, each configured in one place:
 
 1. **Object detection (YOLO)** — used by `item_counting`,
-   `ppe_compliance` and `missing_product`:
+   `ppe_compliance`, `missing_product` and `car_identification`:
    - Per-task override: the `model:` field in `config/tasks.yaml`
-     (e.g. `model: yolov8s.pt`).
+     (e.g. `model: models/detection/yolov8s.pt`).
    - Global default: `vision.model_size_override` in `config/app.yaml`.
    - If neither is set, the application automatically picks
-     `yolov8s.pt` on CUDA or `yolov8n.pt` on CPU.
+     `models/detection/yolov8s.pt` on CUDA or `models/detection/yolov8n.pt` on CPU.
    - `ppe_compliance` needs a model actually trained on PPE classes —
      the default YOLO model (COCO) does not recognize a helmet or a
      vest, so point `model:` at a checkpoint trained for that before
@@ -646,6 +700,61 @@ Types registered in `tasks/registry.py` (auto-registered when the
   installed; with no employee enrolled, every face is treated as
   unknown (see [Employee enrollment](#employee-enrollment)).
 
+- **`print_monitor`** (`tasks/print_monitor.py`) — segmentation-based
+  "spaghetti detection" heuristic for 3D printing: masks the current
+  print each frame and flags an abrupt area/shape deviation from its
+  own rolling history as a possible failed print. Needs a
+  **segmentation**-kind model (see [Models](#models)) — there is no
+  default one shipped, so `model:` must be set explicitly in
+  `tasks.yaml`. Parameters: `print_class`, `window_size`,
+  `area_growth_threshold`, `shape_irregularity_threshold`,
+  `min_history_before_flagging`. Comparing against the actual STL/3MF
+  file is a documented future phase, not implemented yet — it would
+  need a camera-calibration step this application doesn't have.
+
+- **`car_identification`** (`tasks/car_identification.py`, optional) —
+  for each tracked car, crops it and returns an ordered
+  `[trademark, color, plate_text]`: trademark comes from a
+  **classification**-kind model you provide (`trademark_model`
+  parameter, required), color is computed directly from the crop's
+  pixels (not a model — more robust than a trained classifier under
+  varying lighting), and the plate is read with OCR
+  ([EasyOCR](https://github.com/JaidedAI/EasyOCR)). Parameters:
+  `car_class`, `trademark_model`, `ocr_languages`, `min_confidence`,
+  `cooldown_seconds`, `device`. Available only when `easyocr` is
+  installed (see [Installation](#installation) for a CUDA-friendly way
+  to add it without disturbing a pacman-installed torch).
+
+## Triggers
+
+Condition → action rules that react to any Flag (from any task above)
+and drive external IO — the **Triggers** screen in the web interface
+(bolt icon in the sidebar), backed by `config/Triggers.yaml`.
+
+A global toggle picks how matched actions run:
+
+- **Ask for permission** (default) — a matched action is queued for
+  manual approval/denial in the same screen, instead of firing
+  immediately.
+- **Auto mode** — matched actions fire right away.
+
+Each rule has a condition (`task_type`, `flag_id`, `camera_id`,
+`severity` — an empty field matches anything) and one or more actions.
+Three protocol backends ship today, registered in
+`triggers/actions/registry.py`:
+
+| Action type | Needs | Target fields |
+|---|---|---|
+| `http_webhook` | nothing extra — always available | `url`, `timeout_seconds` (optional) |
+| `mqtt` | `paho-mqtt` | `host`, `port` (optional, default 1883), `topic`, `qos` (optional) |
+| `modbus_tcp` | `pymodbus` | `host`, `port` (optional, default 502), `register`, `value` |
+
+`mqtt`/`modbus_tcp` simply don't appear in the action-type picker when
+their package isn't installed — the rest of the application keeps
+working. Adding another protocol (EtherNet/IP, OPC-UA, ...) is a new
+file in `triggers/actions/` plus one import line, following the same
+pattern.
+
 ## Optional features
 
 ### Desktop notifications
@@ -703,7 +812,7 @@ FastAPI's `TestClient` with a fake backend — no camera is opened and no
 model is loaded. `test_i18n.py` checks that both languages define the
 same keys with matching placeholders, so a half-translated string fails
 the suite instead of reaching the screen. One test
-(`test_vision_integration.py`) downloads `yolov8n.pt` and another
+(`test_vision_integration.py`) downloads `models/detection/yolov8n.pt` and another
 (`test_face_recognizer_integration.py`) downloads the `buffalo_s` face
 model on the first run, when they are not cached yet.
 
@@ -714,7 +823,7 @@ model on the first run, when they are not cached yet.
 | `data/app.db` | SQLite: employees, face embeddings, event log, narration log (gitignored) |
 | `.env.enc` | Encrypted camera credentials (gitignored) — see [Camera credentials & encryption](#camera-credentials--encryption) |
 | `~/.insightface/models/` | Downloaded face recognition models (`buffalo_s`/`buffalo_l`), cached between runs |
-| `*.pt` in the project root | Downloaded YOLO weights (e.g. `yolov8n.pt`), cached between runs (gitignored) |
+| `models/<kind>/*.pt` | Downloaded YOLO weights, one folder per model kind (`detection`/`obb`/`segmentation`/`pose`/`classification`), cached between runs (gitignored) |
 | `src/web/static/` | HTML, CSS and JS of the web interface — this is where you edit the looks |
 | `src/i18n.py` | Wording of both interfaces, in English and Portuguese |
 

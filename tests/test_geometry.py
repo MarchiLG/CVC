@@ -1,4 +1,6 @@
-from tasks.geometry import bbox_center, bbox_overlaps, line_side, point_in_polygon
+import numpy as np
+
+from tasks.geometry import bbox_center, bbox_overlaps, crop_bbox, line_side, point_in_polygon
 
 
 def test_bbox_center():
@@ -35,3 +37,27 @@ def test_bbox_overlaps_true_for_intersecting_boxes():
 
 def test_bbox_overlaps_false_for_disjoint_boxes():
     assert bbox_overlaps((0, 0, 10, 10), (20, 20, 30, 30)) is False
+
+
+def _frame(h=20, w=20):
+    return np.arange(h * w * 3, dtype=np.uint8).reshape(h, w, 3)
+
+
+def test_crop_bbox_fully_inside_frame():
+    frame = _frame()
+    crop = crop_bbox(frame, (2, 3, 8, 10))
+    assert crop.shape == (7, 6, 3)
+    assert np.array_equal(crop, frame[3:10, 2:8])
+
+
+def test_crop_bbox_clamped_when_partially_outside_frame():
+    frame = _frame(h=10, w=10)
+    crop = crop_bbox(frame, (-5, -5, 5, 5))
+    assert crop.shape == (5, 5, 3)
+    assert np.array_equal(crop, frame[0:5, 0:5])
+
+
+def test_crop_bbox_empty_when_fully_outside_frame():
+    frame = _frame(h=10, w=10)
+    crop = crop_bbox(frame, (100, 100, 200, 200))
+    assert crop.size == 0

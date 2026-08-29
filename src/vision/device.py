@@ -13,8 +13,8 @@ import torch
 logger = logging.getLogger("cv_central.vision.device")
 
 _DEFAULT_MODEL_BY_DEVICE = {
-    "cuda": "yolov8s.pt",
-    "cpu": "yolov8n.pt",
+    "cuda": "models/detection/yolov8s.pt",
+    "cpu": "models/detection/yolov8n.pt",
 }
 
 _DEFAULT_FACE_MODEL_BY_DEVICE = {
@@ -35,7 +35,7 @@ def resolve_device(preferred: str = "auto") -> str:
 
 
 def default_model_for_device(device: str, override: str | None = None) -> str:
-    return override or _DEFAULT_MODEL_BY_DEVICE.get(device, "yolov8n.pt")
+    return override or _DEFAULT_MODEL_BY_DEVICE.get(device, "models/detection/yolov8n.pt")
 
 
 def default_face_model_for_device(device: str, override: str | None = None) -> str:

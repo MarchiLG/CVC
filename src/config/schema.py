@@ -36,6 +36,8 @@ class TaskConfig:
 
     type: str
     model: str | None = None
+    model_type: str | None = None  # "detection"|"obb"|"segmentation"|"pose"|"classification"; overrides the
+    # task-type -> kind registry in tasks/model_kinds.py when set. Left unset by every built-in task type today.
     detect_fps: float = 5.0
     params: dict = field(default_factory=dict)
     flags: list[FlagConfig] = field(default_factory=list)

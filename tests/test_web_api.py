@@ -98,8 +98,11 @@ class _FakeRuntime:
     """The same surface bootstrap.AppRuntime exposes to the UIs."""
 
     def __init__(self, tasks_yaml_path, cameras=None, frames=None, connected=None,
-                 flags=None, results=None, pipelines=None):
+                 flags=None, results=None, pipelines=None, triggers_yaml_path=None, trigger_engine=None):
         from config.schema import AppSettings
+        from triggers.engine import TriggerEngine
+
+        from config.triggers_schema import TriggersSettings
 
         self.camera_manager = _FakeCameraManager(cameras or [("cam1", "C1")], frames, connected)
         self.results_store = _FakeResultsStore(results)
@@ -108,8 +111,11 @@ class _FakeRuntime:
         self.app_settings = AppSettings()
         self.tasks_yaml_path = str(tasks_yaml_path)
         self.cameras_yaml_path = "cameras.yaml"
+        self.triggers_yaml_path = str(triggers_yaml_path) if triggers_yaml_path is not None else "Triggers.yaml"
+        self.trigger_engine = trigger_engine or TriggerEngine(TriggersSettings())
         self.narrator = None
         self.reload_count = 0
+        self.trigger_reload_count = 0
 
     def latest_summary(self):
         return None
@@ -117,6 +123,9 @@ class _FakeRuntime:
     def reload_tasks(self):
         self.reload_count += 1
         return len(self.engine.pipelines)
+
+    def reload_triggers(self):
+        self.trigger_reload_count += 1
 
 
 @pytest.fixture
@@ -127,7 +136,12 @@ def tasks_path(tmp_path):
 
 
 @pytest.fixture
-def runtime(tasks_path):
+def triggers_path(tmp_path):
+    return tmp_path / "Triggers.yaml"  # left non-existent -> loader defaults apply
+
+
+@pytest.fixture
+def runtime(tasks_path, triggers_path):
     frame = np.zeros((480, 640, 3), dtype=np.uint8)
     track = Track(class_name="person", confidence=0.9, bbox=(10, 10, 50, 50), track_id=1)
     return _FakeRuntime(
@@ -136,6 +150,7 @@ def runtime(tasks_path):
         connected={"cam1": True},
         results={"cam1": ([], [track])},
         pipelines={"cam1": object()},
+        triggers_yaml_path=triggers_path,
     )
 
 
@@ -433,3 +448,135 @@ def test_enroll_with_blank_name_returns_400(client):
     response = client.post("/api/employees", data={"name": "   ", "camera_id": "cam1"})
 
     assert response.status_code == 400
+
+
+# ---------------------------------------------------------------------- #
+# Triggers (config/Triggers.yaml)
+# ---------------------------------------------------------------------- #
+def test_action_types_lists_at_least_the_always_available_webhook(client):
+    body = client.get("/api/triggers/action-types").json()
+    assert "http_webhook" in body
+
+
+def test_mode_defaults_to_ask_on_a_missing_triggers_yaml(client):
+    assert client.get("/api/triggers/mode").json() == {"mode": "ask"}
+
+
+def test_setting_mode_persists_and_rereads(client):
+    response = client.patch("/api/triggers/mode", json={"mode": "auto"})
+    assert response.status_code == 200
+    assert client.get("/api/triggers/mode").json() == {"mode": "auto"}
+
+
+def test_setting_invalid_mode_returns_400(client):
+    response = client.patch("/api/triggers/mode", json={"mode": "sometimes"})
+    assert response.status_code == 400
+    assert response.json()["code"] == "api.invalid_trigger_mode"
+
+
+def test_triggers_list_starts_empty(client):
+    assert client.get("/api/triggers").json() == []
+
+
+def _rule_payload(rule_id="jam-stops-conveyor"):
+    return {
+        "id": rule_id,
+        "enabled": True,
+        "condition": {"task_type": "item_counting", "flag_id": "count_threshold"},
+        "actions": [{"type": "http_webhook", "target": {"url": "http://example.invalid/hook"}}],
+    }
+
+
+def test_add_and_list_trigger_rule(client):
+    response = client.post("/api/triggers", json=_rule_payload())
+    assert response.status_code == 201
+
+    rules = client.get("/api/triggers").json()
+    assert len(rules) == 1
+    assert rules[0]["id"] == "jam-stops-conveyor"
+    assert rules[0]["condition"]["task_type"] == "item_counting"
+    assert rules[0]["actions"][0]["type"] == "http_webhook"
+
+
+def test_adding_duplicate_rule_id_returns_400(client):
+    client.post("/api/triggers", json=_rule_payload())
+    response = client.post("/api/triggers", json=_rule_payload())
+
+    assert response.status_code == 400
+    assert response.json()["code"] == "api.trigger_rule_already_exists"
+
+
+def test_update_trigger_rule_toggles_enabled(client):
+    client.post("/api/triggers", json=_rule_payload())
+
+    response = client.patch("/api/triggers/jam-stops-conveyor", json={"enabled": False})
+    assert response.status_code == 200
+
+    rules = client.get("/api/triggers").json()
+    assert rules[0]["enabled"] is False
+
+
+def test_update_unknown_rule_returns_404(client):
+    response = client.patch("/api/triggers/does-not-exist", json={"enabled": False})
+    assert response.status_code == 404
+    assert response.json()["code"] == "api.trigger_rule_not_found"
+
+
+def test_delete_trigger_rule(client):
+    client.post("/api/triggers", json=_rule_payload())
+
+    response = client.delete("/api/triggers/jam-stops-conveyor")
+    assert response.status_code == 200
+    assert client.get("/api/triggers").json() == []
+
+
+def test_delete_unknown_rule_returns_404(client):
+    response = client.delete("/api/triggers/does-not-exist")
+    assert response.status_code == 404
+    assert response.json()["code"] == "api.trigger_rule_not_found"
+
+
+def test_reload_triggers_calls_runtime(client, runtime):
+    response = client.post("/api/triggers/reload")
+    assert response.status_code == 200
+    assert runtime.trigger_reload_count == 1
+
+
+def test_pending_actions_empty_by_default(client):
+    assert client.get("/api/triggers/pending").json() == []
+
+
+def test_approve_unknown_pending_action_returns_404(client):
+    response = client.post("/api/triggers/pending/does-not-exist/approve")
+    assert response.status_code == 404
+    assert response.json()["code"] == "api.pending_action_not_found"
+
+
+def test_deny_unknown_pending_action_returns_404(client):
+    response = client.post("/api/triggers/pending/does-not-exist/deny")
+    assert response.status_code == 404
+    assert response.json()["code"] == "api.pending_action_not_found"
+
+
+def test_pending_action_lifecycle_via_engine(client, runtime, monkeypatch):
+    """Drives the SAME TriggerEngine instance the API routes read from
+    (runtime.trigger_engine) to create a pending action in "ask" mode,
+    then approves it through the HTTP route."""
+    from config.triggers_schema import TriggerAction
+    from notify.flag import Flag
+    from triggers.actions import registry as action_registry
+
+    executed = []
+    monkeypatch.setattr(action_registry, "execute", lambda action_type, target, flag: executed.append(action_type))
+
+    runtime.trigger_engine.settings.mode = "ask"
+    flag = Flag(camera_id="cam1", task_type="item_counting", flag_id="count_threshold")
+    runtime.trigger_engine._trigger("rule1", flag, TriggerAction(type="http_webhook", target={"url": "http://x"}))
+
+    pending = client.get("/api/triggers/pending").json()
+    assert len(pending) == 1
+    pending_id = pending[0]["id"]
+
+    response = client.post(f"/api/triggers/pending/{pending_id}/approve")
+    assert response.status_code == 200
+    assert client.get("/api/triggers/pending").json() == []

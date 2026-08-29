@@ -134,6 +134,13 @@
         </svg>
         <span data-i18n="nav.employees">Employees</span>
       </button>
+
+      <button class="nav__item" data-view="triggers">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M13 2 4 14h6l-1 8 9-12h-6z"/>
+        </svg>
+        <span data-i18n="nav.triggers">Triggers</span>
+      </button>
     </nav>
 
     <!-- Filled in by js/app.js from GET /api/system and /api/state. -->
@@ -418,6 +425,46 @@
             </div>
           </div>
 
+        </div>
+      </section>
+
+      <!-- ============================================================
+           SCREEN: TRIGGERS
+           Condition -> action rules that fire on alerts and drive
+           external IO devices (config/Triggers.yaml).
+           ============================================================ -->
+      <section class="view" data-view="triggers">
+        <div class="panel panel--toolbar">
+          <label class="switch">
+            <input type="checkbox" id="triggers-mode-toggle">
+            <span class="switch__track"><span class="switch__thumb"></span></span>
+            <span id="triggers-mode-label" data-i18n="triggers.mode.ask">Ask for permission</span>
+          </label>
+
+          <div class="field">
+            <label for="triggers-new-id" data-i18n="triggers.new_rule">New rule id</label>
+            <input type="text" id="triggers-new-id" class="input" data-i18n-placeholder="triggers.new_rule_placeholder">
+          </div>
+
+          <div class="field field--actions">
+            <button class="btn btn--primary" id="triggers-add" data-i18n="triggers.add">Add rule</button>
+          </div>
+        </div>
+
+        <p class="hint" data-i18n="triggers.mode_hint">
+          Ask mode queues matched actions below for approval; Auto mode fires them immediately.
+        </p>
+
+        <div class="task-list" id="triggers-rules"></div>
+        <div class="empty-state" id="triggers-empty" hidden>
+          <h3 data-i18n="triggers.empty.title">No trigger rules yet</h3>
+          <p data-i18n="triggers.empty.body">Add a rule above to react to an alert by driving an external device.</p>
+        </div>
+
+        <h2 class="panel__title" data-i18n="triggers.pending_title">Pending approvals</h2>
+        <div class="task-list" id="triggers-pending"></div>
+        <div class="empty-state empty-state--sm" id="triggers-pending-empty">
+          <p data-i18n="triggers.pending_empty">Nothing waiting for approval.</p>
         </div>
       </section>
 

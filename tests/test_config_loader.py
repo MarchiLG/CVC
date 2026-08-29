@@ -1,6 +1,6 @@
 import pytest
 
-from config.loader import ConfigError, load_app_config, load_cameras_config, load_tasks_config
+from config.loader import ConfigError, load_app_config, load_cameras_config, load_tasks_config, load_triggers_config
 
 
 def test_load_cameras_config_expands_env(tmp_path, monkeypatch):
@@ -66,6 +66,38 @@ def test_load_tasks_config_parses_tasks_and_flags(tmp_path):
     assert task.params == {"direction": "down"}
     assert task.flags[0].id == "count_threshold"
     assert task.flags[0].enabled is False
+
+
+def test_load_triggers_config_missing_file_returns_defaults(tmp_path):
+    settings = load_triggers_config(str(tmp_path / "does_not_exist.yaml"))
+    assert settings.mode == "ask"
+    assert settings.rules == []
+
+
+def test_load_triggers_config_parses_rules(tmp_path):
+    triggers_yaml = tmp_path / "Triggers.yaml"
+    triggers_yaml.write_text(
+        "mode: auto\n"
+        "rules:\n"
+        "  - id: jam-stops-conveyor\n"
+        "    enabled: true\n"
+        "    condition: {task_type: item_counting, flag_id: count_threshold}\n"
+        "    actions:\n"
+        "      - type: modbus_tcp\n"
+        "        target: {host: 192.168.1.50, port: 502, register: 100, value: 1}\n"
+    )
+
+    settings = load_triggers_config(str(triggers_yaml))
+
+    assert settings.mode == "auto"
+    [rule] = settings.rules
+    assert rule.id == "jam-stops-conveyor"
+    assert rule.enabled is True
+    assert rule.condition.task_type == "item_counting"
+    assert rule.condition.flag_id == "count_threshold"
+    assert rule.condition.camera_id is None
+    assert rule.actions[0].type == "modbus_tcp"
+    assert rule.actions[0].target == {"host": "192.168.1.50", "port": 502, "register": 100, "value": 1}
 
 
 def test_load_app_config_missing_file_returns_defaults(tmp_path):

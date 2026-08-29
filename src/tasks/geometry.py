@@ -48,3 +48,17 @@ def bbox_overlaps(a: tuple[float, float, float, float], b: tuple[float, float, f
     inter_w = max(0.0, min(ax2, bx2) - max(ax1, bx1))
     inter_h = max(0.0, min(ay2, by2) - max(ay1, by1))
     return (inter_w * inter_h) > 0
+
+
+def crop_bbox(frame, bbox: tuple[float, float, float, float]):
+    """The region of `frame` inside `bbox`, clamped to the frame's
+    bounds. An empty array (size 0) if the box falls fully outside the
+    frame or has no area after clamping — callers should check
+    `.size == 0` before feeding the crop to a secondary model."""
+    h, w = frame.shape[:2]
+    x1, y1, x2, y2 = bbox
+    x1 = max(0, int(x1))
+    y1 = max(0, int(y1))
+    x2 = min(w, int(x2))
+    y2 = min(h, int(y2))
+    return frame[y1:y2, x1:x2]

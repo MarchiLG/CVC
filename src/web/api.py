@@ -40,8 +40,13 @@ from config.schema import CameraConfig
 from config.writer import TasksYamlWriter
 from db import repository
 from db.session import get_session
+from config.triggers_writer import TriggersYamlWriter
 from security import env_vault
+from tasks.model_kinds import TASK_MODEL_KIND
 from tasks.registry import available_types
+from triggers.actions.registry import available_types as trigger_action_types
+from vision.model_catalog import list_models, scan_all_models
+from vision.model_kind import ModelKind
 
 from . import streaming
 from .deps import get_runtime, peek_runtime, set_runtime
@@ -68,6 +73,8 @@ class TaskUpdatePayload(BaseModel):
     detect_fps without rewriting params, and vice versa."""
     detect_fps: float | None = Field(default=None, gt=0)
     params: dict | None = None
+    model: str | None = None
+    model_type: str | None = None
 
 
 class FlagPayload(BaseModel):
@@ -79,6 +86,38 @@ class FlagPayload(BaseModel):
 
 class FlagsUpdatePayload(BaseModel):
     flags: list[FlagPayload]
+
+
+class TriggerConditionPayload(BaseModel):
+    """Absent/empty fields match any value — see triggers/engine.py."""
+    task_type: str | None = None
+    flag_id: str | None = None
+    camera_id: str | None = None
+    severity: str | None = None
+
+
+class TriggerActionPayload(BaseModel):
+    type: str
+    target: dict = Field(default_factory=dict)
+
+
+class TriggerRulePayload(BaseModel):
+    id: str
+    enabled: bool = True
+    condition: TriggerConditionPayload = Field(default_factory=TriggerConditionPayload)
+    actions: list[TriggerActionPayload] = Field(default_factory=list)
+
+
+class TriggerRuleUpdatePayload(BaseModel):
+    """Absent fields (None) are left untouched, same convention as
+    TaskUpdatePayload."""
+    enabled: bool | None = None
+    condition: TriggerConditionPayload | None = None
+    actions: list[TriggerActionPayload] | None = None
+
+
+class TriggerModePayload(BaseModel):
+    mode: str
 
 
 class GeometryPayload(BaseModel):
@@ -619,11 +658,32 @@ def delete_camera(camera_id: str, runtime=Depends(get_runtime)):
 def get_task_types():
     """Types registered in tasks/registry.py — populates the "new task"
     select. It includes each type's geometry kind, so the calibration
-    screen knows whether to draw a line, a polygon or nothing."""
+    screen knows whether to draw a line, a polygon or nothing, and its
+    model_kind, so the settings screen knows which models/<kind>/ folder
+    to offer in the model picker ("none" = the task manages its own
+    model and gets no picker at all, e.g. face_id)."""
     return [
-        {"type": task_type, "geometry": geometry_kind(task_type)}
+        {
+            "type": task_type,
+            "geometry": geometry_kind(task_type),
+            "model_kind": TASK_MODEL_KIND.get(task_type, ModelKind.DETECTION).value,
+        }
         for task_type in available_types()
     ]
+
+
+@router.get("/models")
+def get_models(model_type: str | None = Query(default=None)):
+    """Model files under models/<kind>/, for the settings screen's model
+    picker. ?model_type=segmentation -> {"segmentation": [...]}; omitted
+    -> every kind."""
+    if model_type is None:
+        return scan_all_models()
+    try:
+        kind = ModelKind(model_type)
+    except ValueError:
+        raise ApiError(400, "api.unknown_model_type")
+    return {kind.value: list_models(kind)}
 
 
 @router.get("/cameras/{camera_id}/tasks")
@@ -643,9 +703,11 @@ def _task_to_dict(index: int, task) -> dict:
         "index": index,
         "type": task_type,
         "model": task.get("model"),
+        "model_type": task.get("model_type"),
         "detect_fps": float(task.get("detect_fps", 5.0)),
         "params": params,
         "geometry": geometry_kind(task_type),
+        "model_kind": TASK_MODEL_KIND.get(task_type, ModelKind.DETECTION).value,
         "flags": [
             {
                 "id": flag.get("id", ""),
@@ -688,6 +750,8 @@ def update_task(camera_id: str, task_index: int, payload: TaskUpdatePayload, run
         writer.set_task_detect_fps(camera_id, task_index, payload.detect_fps)
     if payload.params is not None:
         writer.set_task_params(camera_id, task_index, payload.params)
+    if payload.model is not None:
+        writer.set_task_model(camera_id, task_index, payload.model, payload.model_type)
 
     return {"ok": True}
 
@@ -756,6 +820,163 @@ def reload_pipelines(runtime=Depends(get_runtime)):
     ModelRegistry, so the rebuild is fast."""
     count = runtime.reload_tasks()
     return {"ok": True, "pipeline_count": count}
+
+
+# ---------------------------------------------------------------------- #
+# Triggers (config/Triggers.yaml)
+# ---------------------------------------------------------------------- #
+@router.get("/triggers/action-types")
+def get_trigger_action_types():
+    """Protocol backends registered in triggers/actions/registry.py —
+    populates the action "type" select. mqtt/modbus_tcp only appear when
+    their optional dependency (paho-mqtt/pymodbus) is installed."""
+    return trigger_action_types()
+
+
+@router.get("/triggers/mode")
+def get_trigger_mode(runtime=Depends(get_runtime)):
+    return {"mode": TriggersYamlWriter(runtime.triggers_yaml_path).get_mode()}
+
+
+@router.patch("/triggers/mode")
+def set_trigger_mode(payload: TriggerModePayload, runtime=Depends(get_runtime)):
+    if payload.mode not in ("ask", "auto"):
+        raise ApiError(400, "api.invalid_trigger_mode")
+    TriggersYamlWriter(runtime.triggers_yaml_path).set_mode(payload.mode)
+    return {"ok": True}
+
+
+@router.get("/triggers")
+def get_triggers(runtime=Depends(get_runtime)):
+    """Rules read from Triggers.yaml on every call, same convention as
+    GET /api/cameras/{id}/tasks — the UI reflects hand-edits to the
+    file too."""
+    writer = TriggersYamlWriter(runtime.triggers_yaml_path)
+    return [_rule_to_dict(rule) for rule in writer.get_rules()]
+
+
+def _rule_to_dict(rule) -> dict:
+    condition = _plain(rule.get("condition", {}) or {})
+    return {
+        "id": rule.get("id", ""),
+        "enabled": bool(rule.get("enabled", True)),
+        "condition": {
+            "task_type": condition.get("task_type"),
+            "flag_id": condition.get("flag_id"),
+            "camera_id": condition.get("camera_id"),
+            "severity": condition.get("severity"),
+        },
+        "actions": [
+            {"type": action.get("type", ""), "target": _plain(action.get("target", {}) or {})}
+            for action in (rule.get("actions", []) or [])
+        ],
+    }
+
+
+@router.post("/triggers", status_code=201)
+def add_trigger(payload: TriggerRulePayload, runtime=Depends(get_runtime)):
+    writer = TriggersYamlWriter(runtime.triggers_yaml_path)
+    if writer.find_rule_index(payload.id) is not None:
+        raise ApiError(400, "api.trigger_rule_already_exists")
+
+    writer.add_rule(
+        payload.id,
+        condition=_condition_dict(payload.condition),
+        actions=[_action_dict(action) for action in payload.actions],
+        enabled=payload.enabled,
+    )
+    return {"ok": True, "id": payload.id}
+
+
+@router.patch("/triggers/{rule_id}")
+def update_trigger(rule_id: str, payload: TriggerRuleUpdatePayload, runtime=Depends(get_runtime)):
+    writer = TriggersYamlWriter(runtime.triggers_yaml_path)
+    if writer.find_rule_index(rule_id) is None:
+        raise ApiError(404, "api.trigger_rule_not_found")
+
+    try:
+        writer.update_rule(
+            rule_id,
+            enabled=payload.enabled,
+            condition=_condition_dict(payload.condition) if payload.condition is not None else None,
+            actions=[_action_dict(action) for action in payload.actions] if payload.actions is not None else None,
+        )
+    except KeyError as error:
+        raise ApiError(404, "api.trigger_rule_not_found") from error
+    return {"ok": True}
+
+
+@router.delete("/triggers/{rule_id}")
+def delete_trigger(rule_id: str, runtime=Depends(get_runtime)):
+    writer = TriggersYamlWriter(runtime.triggers_yaml_path)
+    try:
+        writer.remove_rule(rule_id)
+    except KeyError as error:
+        raise ApiError(404, "api.trigger_rule_not_found") from error
+    return {"ok": True}
+
+
+def _condition_dict(condition: "TriggerConditionPayload") -> dict:
+    result = {}
+    if condition.task_type:
+        result["task_type"] = condition.task_type
+    if condition.flag_id:
+        result["flag_id"] = condition.flag_id
+    if condition.camera_id:
+        result["camera_id"] = condition.camera_id
+    if condition.severity:
+        result["severity"] = condition.severity
+    return result
+
+
+def _action_dict(action: "TriggerActionPayload") -> dict:
+    return {"type": action.type, "target": action.target}
+
+
+@router.post("/triggers/reload")
+def reload_triggers(runtime=Depends(get_runtime)):
+    """Re-reads Triggers.yaml into the live TriggerEngine, without
+    restarting anything — mirrors POST /api/reload for tasks."""
+    runtime.reload_triggers()
+    return {"ok": True}
+
+
+@router.get("/triggers/pending")
+def get_pending_triggers(runtime=Depends(get_runtime)):
+    """Actions queued for approval while mode == "ask" — see
+    TriggerEngine.pending() in triggers/engine.py."""
+    return [_pending_to_dict(pending) for pending in runtime.trigger_engine.pending()]
+
+
+def _pending_to_dict(pending) -> dict:
+    return {
+        "id": pending.id,
+        "rule_id": pending.rule_id,
+        "created_at": pending.created_at,
+        "action": {"type": pending.action.type, "target": pending.action.target},
+        "flag": {
+            "camera_id": pending.flag.camera_id,
+            "task_type": pending.flag.task_type,
+            "flag_id": pending.flag.flag_id,
+            "severity": pending.flag.severity,
+            "message": pending.flag.message,
+            "timestamp": pending.flag.timestamp,
+        },
+    }
+
+
+@router.post("/triggers/pending/{pending_id}/approve")
+def approve_pending_trigger(pending_id: str, runtime=Depends(get_runtime)):
+    if not runtime.trigger_engine.approve(pending_id):
+        raise ApiError(404, "api.pending_action_not_found")
+    return {"ok": True}
+
+
+@router.post("/triggers/pending/{pending_id}/deny")
+def deny_pending_trigger(pending_id: str, runtime=Depends(get_runtime)):
+    if not runtime.trigger_engine.deny(pending_id):
+        raise ApiError(404, "api.pending_action_not_found")
+    return {"ok": True}
 
 
 # ---------------------------------------------------------------------- #

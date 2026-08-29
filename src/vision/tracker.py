@@ -45,15 +45,22 @@ class _TrackState:
 
 
 class Tracker:
-    """Greedy IOU tracker holding its own state — one instance per camera."""
+    """Greedy IOU tracker holding its own state — one instance per camera.
 
-    def __init__(self, iou_threshold: float = 0.3, max_misses: int = 5):
+    `track_cls` defaults to Track (today's only kind); pass one of the
+    other *Track dataclasses (vision/results.py) to track OBB/segmentation
+    /pose results instead — every one of them is its *Detection/*Instance
+    counterpart plus `track_id`, which is what makes the generic
+    `_to_track()` below work without per-kind branching."""
+
+    def __init__(self, iou_threshold: float = 0.3, max_misses: int = 5, track_cls: type = Track):
         self.iou_threshold = iou_threshold
         self.max_misses = max_misses
+        self.track_cls = track_cls
         self._tracks: list[_TrackState] = []
         self._next_id = 1
 
-    def update(self, detections: list[Detection]) -> list[Track]:
+    def update(self, detections: list) -> list:
         candidates = []
         for ti, track in enumerate(self._tracks):
             for di, det in enumerate(detections):
@@ -74,12 +81,12 @@ class Tracker:
             matched_dets.add(di)
             matches.append((ti, di))
 
-        result: list[Track] = []
+        result: list = []
         for ti, di in matches:
             track = self._tracks[ti]
             track.detection = detections[di]
             track.misses = 0
-            result.append(_to_track(track))
+            result.append(_to_track(track, self.track_cls))
 
         remaining_tracks = []
         for ti, track in enumerate(self._tracks):
@@ -97,15 +104,10 @@ class Tracker:
             new_track = _TrackState(track_id=self._next_id, detection=detection)
             self._next_id += 1
             self._tracks.append(new_track)
-            result.append(_to_track(new_track))
+            result.append(_to_track(new_track, self.track_cls))
 
         return result
 
 
-def _to_track(state: _TrackState) -> Track:
-    return Track(
-        class_name=state.detection.class_name,
-        confidence=state.detection.confidence,
-        bbox=state.detection.bbox,
-        track_id=state.track_id,
-    )
+def _to_track(state: _TrackState, track_cls: type):
+    return track_cls(**vars(state.detection), track_id=state.track_id)

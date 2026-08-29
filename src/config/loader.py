@@ -23,6 +23,7 @@ from .schema import (
     UiSettings,
     VisionSettings,
 )
+from .triggers_schema import TriggerAction, TriggerCondition, TriggerRule, TriggersSettings
 
 SUPPORTED_LANGUAGES = ("en", "pt")
 
@@ -116,6 +117,7 @@ def load_tasks_config(path: str) -> dict[str, list[TaskConfig]]:
                 TaskConfig(
                     type=task_entry["type"],
                     model=task_entry.get("model"),
+                    model_type=task_entry.get("model_type"),
                     detect_fps=task_entry.get("detect_fps", 5.0),
                     params=task_entry.get("params", {}),
                     flags=[_load_flag(f) for f in task_entry.get("flags", [])],
@@ -158,6 +160,41 @@ def load_app_config(path: str) -> AppSettings:
         ui=UiSettings(
             language=_normalize_language(ui_raw.get("language", "en")),
         ),
+    )
+
+
+def _load_trigger_condition(entry: dict) -> TriggerCondition:
+    return TriggerCondition(
+        task_type=entry.get("task_type"),
+        flag_id=entry.get("flag_id"),
+        camera_id=entry.get("camera_id"),
+        severity=entry.get("severity"),
+    )
+
+
+def _load_trigger_action(entry: dict) -> TriggerAction:
+    return TriggerAction(type=entry["type"], target=entry.get("target", {}))
+
+
+def _load_trigger_rule(entry: dict) -> TriggerRule:
+    return TriggerRule(
+        id=entry["id"],
+        enabled=entry.get("enabled", True),
+        condition=_load_trigger_condition(entry.get("condition", {}) or {}),
+        actions=[_load_trigger_action(a) for a in entry.get("actions", [])],
+    )
+
+
+def load_triggers_config(path: str) -> TriggersSettings:
+    """Returns TriggersSettings. Missing file -> defaults (mode "ask",
+    no rules) — same convention as load_tasks_config/load_app_config."""
+    if not os.path.exists(path):
+        return TriggersSettings()
+
+    raw = _load_yaml(path)
+    return TriggersSettings(
+        mode=raw.get("mode", "ask"),
+        rules=[_load_trigger_rule(entry) for entry in raw.get("rules", [])],
     )
 
 
