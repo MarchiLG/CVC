@@ -436,8 +436,6 @@ Both paths share the same underlying behavior:
   `.env.enc` — there is no recovery. Keep it somewhere safe (a password
   manager), separate from the project.
 
-`.env.enc` is gitignored, same as `.env` used to be — it should never
-be committed.
 
 ### Stopping the application
 
