@@ -27,6 +27,8 @@ _DEFAULT_ABSENCE_SECONDS = 10.0
 @register("missing_product")
 class MissingProductAnalyzer(TaskAnalyzer):
     type = "missing_product"
+    DEFAULT_PARAMS = {"absence_dwell_seconds": _DEFAULT_ABSENCE_SECONDS}
+    DEFAULT_FLAGS = [{"id": "missing_product", "enabled": True, "severity": "warning", "notify": ["log"]}]
 
     def __init__(self, camera_id, config):
         super().__init__(camera_id, config)

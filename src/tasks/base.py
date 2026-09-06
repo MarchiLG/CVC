@@ -15,6 +15,14 @@ from vision.types import Detection, Track
 
 class TaskAnalyzer(ABC):
     type: str
+    # Seed values for a newly-created task of this type (POST
+    # /api/cameras/{id}/tasks) — kept next to each concrete analyzer's
+    # "params expected in tasks.yaml" docstring so the two can't drift
+    # apart. Geometry-only params (counting_line, zones) are
+    # deliberately left out: they only ever come from the Calibration
+    # screen, never from a hand-typed/generic default.
+    DEFAULT_PARAMS: dict = {}
+    DEFAULT_FLAGS: list[dict] = []
 
     def __init__(self, camera_id: str, config: TaskConfig):
         self.camera_id = camera_id

@@ -29,6 +29,8 @@ _DEFAULT_THRESHOLD = 0.45
 @register("face_id")
 class FaceIDAnalyzer(TaskAnalyzer):
     type = "face_id"
+    DEFAULT_PARAMS = {"match_threshold": _DEFAULT_THRESHOLD, "log_unknown": True, "device": "auto"}
+    DEFAULT_FLAGS = [{"id": "unknown_face", "enabled": True, "severity": "info", "notify": ["log"]}]
 
     def __init__(self, camera_id, config):
         super().__init__(camera_id, config)

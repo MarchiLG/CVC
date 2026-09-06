@@ -43,12 +43,12 @@ from db.session import get_session
 from config.triggers_writer import TriggersYamlWriter
 from security import env_vault
 from tasks.model_kinds import TASK_MODEL_KIND
-from tasks.registry import available_types
+from tasks.registry import available_types, default_flags, default_params
 from triggers.actions.registry import available_types as trigger_action_types
 from vision.model_catalog import list_models, scan_all_models
 from vision.model_kind import ModelKind
 
-from . import streaming
+from . import sessions, streaming
 from .deps import get_runtime, peek_runtime, set_runtime
 from .errors import ApiError
 
@@ -215,13 +215,29 @@ def get_lock_status():
 
 
 @router.post("/unlock")
-def unlock_vault(payload: UnlockPayload, request: Request):
+def unlock_vault(payload: UnlockPayload, request: Request, response: Response):
     """Unlocks (or, on first run, creates) the encrypted credential
     store from the browser's lock screen, then builds and starts the
     real backend — the web equivalent of the terminal prompt in
     security/env_vault.py's unlock_interactive(), which the desktop GUI
-    (src/main.py) still uses instead of this route."""
+    (src/main.py) still uses instead of this route.
+
+    Every successful call — including a SECOND browser reaching an
+    already-unlocked instance — must present the real password and, in
+    return, gets its own session cookie (see sessions.py): is_unlocked()
+    alone only tells you the vault was opened by *someone*, not that
+    *this* caller is authorized, which used to let any client that
+    reached the port after the first unlock in have full access with no
+    credentials at all."""
     if env_vault.is_unlocked():
+        if not env_vault.verify_password(payload.password):
+            remaining = env_vault.record_failed_attempt()
+            if remaining <= 0:
+                _trigger_shutdown(request)
+                raise ApiError(423, "api.too_many_attempts")
+            raise ApiError(401, "api.wrong_password", remaining=remaining)
+        env_vault.reset_failed_attempts()
+        _issue_session(response, request)
         return {"ok": True}
 
     if os.path.exists(_enc_path()):
@@ -247,8 +263,27 @@ def unlock_vault(payload: UnlockPayload, request: Request):
     if request.app.state.start_backend:
         runtime.start()
     set_runtime(runtime)
+    _issue_session(response, request)
 
     return {"ok": True}
+
+
+def _issue_session(response: Response, request: Request) -> None:
+    """Sets the session cookie a just-authenticated browser will send
+    back on every subsequent request (deps.get_runtime() requires it).
+    `Secure` is set whenever the request itself arrived over HTTPS, or
+    a reverse proxy says it did via X-Forwarded-Proto (see README's
+    note on fronting this with a TLS-terminating proxy like Caddy when
+    exposed beyond localhost/LAN) — never hardcoded True, or the cookie
+    would silently stop being sent on a plain-HTTP LAN deployment."""
+    is_https = request.url.scheme == "https" or request.headers.get("x-forwarded-proto") == "https"
+    response.set_cookie(
+        sessions.COOKIE_NAME,
+        sessions.create(),
+        httponly=True,
+        samesite="strict",
+        secure=is_https,
+    )
 
 
 @router.post("/shutdown")
@@ -256,7 +291,13 @@ def shutdown_app(request: Request):
     """Gracefully stops the backend and terminates the process — the
     UI's "Exit application" button, for when the application was
     started by double-clicking run-html.sh and there is no terminal to
-    Ctrl+C. Works whether the vault is locked or not."""
+    Ctrl+C. Still works with no session while the vault is genuinely
+    LOCKED (closing a mis-clicked launch before ever unlocking it), but
+    once unlocked this requires a valid session same as any other
+    sensitive route — otherwise it is a remote, unauthenticated way to
+    kill the whole application once the port is reachable."""
+    if env_vault.is_unlocked() and not sessions.touch(request.cookies.get(sessions.COOKIE_NAME)):
+        raise ApiError(401, "api.unauthorized")
     _trigger_shutdown(request)
     return {"ok": True}
 
@@ -737,7 +778,11 @@ def add_task(camera_id: str, payload: NewTaskPayload, runtime=Depends(get_runtim
         raise ApiError(400, "api.unknown_task_type")
 
     writer = TasksYamlWriter(runtime.tasks_yaml_path)
-    writer.add_task(camera_id, payload.type)
+    writer.add_task(
+        camera_id, payload.type,
+        params=default_params(payload.type),
+        flags=default_flags(payload.type),
+    )
     return {"ok": True, "type": payload.type}
 
 

@@ -42,6 +42,17 @@ _DEFAULT_MIN_CONFIDENCE = 0.5
 @register("car_identification")
 class CarIdentificationAnalyzer(TaskAnalyzer):
     type = "car_identification"
+    # trademark_model is deliberately omitted: it is required (a path
+    # under models/classification/) and has no safe universal default —
+    # the settings screen must prompt the user to pick one.
+    DEFAULT_PARAMS = {
+        "car_class": "car",
+        "min_confidence": _DEFAULT_MIN_CONFIDENCE,
+        "cooldown_seconds": _DEFAULT_COOLDOWN_SECONDS,
+        "ocr_languages": ["en"],
+        "device": "auto",
+    }
+    DEFAULT_FLAGS = [{"id": "car_identified", "enabled": True, "severity": "info", "notify": ["log"]}]
 
     def __init__(self, camera_id, config):
         super().__init__(camera_id, config)

@@ -534,16 +534,33 @@ Options for `run-html.sh` (any argument is passed through to
 | `--no-browser` | do not open the browser automatically |
 | `--reinstall` | force reinstalling the dependencies |
 
-> **Careful with `--host 0.0.0.0`:** there is no authentication at all
-> once unlocked. The startup password (see [Camera credentials &
-> encryption](#camera-credentials--encryption)) protects `.env.enc`
-> itself — with `--host 0.0.0.0`, the lock screen (and its 5-attempt
-> guess limit) is also reachable from the network before that, but once
-> someone gets past it, or once you unlock it yourself, anyone who can
-> reach the port sees the live cameras and can add/edit/delete them,
-> same as sitting at the keyboard. Use it only on a trusted network (or
-> keep the default `127.0.0.1`, which accepts connections from this
-> machine only).
+> **Careful with `--host 0.0.0.0`:** the lock screen (and its 5-attempt
+> guess limit) becomes reachable from the network. Each browser that
+> submits the correct password there gets its own session (a cookie,
+> good for 12 hours of activity) — a browser that never unlocked it, or
+> whose session has expired, gets a plain 401 on every route, same as
+> sitting down at someone else's locked terminal. Use it only on a
+> trusted network (or keep the default `127.0.0.1`, which accepts
+> connections from this machine only) unless you also do the following:
+>
+> **Exposing it to the internet (port forwarding) needs TLS in front of
+> it.** Without HTTPS, the password and session cookie both travel in
+> plain text to anyone between the browser and your router — the
+> per-browser session above stops "no credentials at all", not network
+> eavesdropping. Put a reverse proxy that terminates TLS in front of
+> uvicorn, e.g. [Caddy](https://caddyserver.com/) (automatic certificate
+> issuance/renewal, minimal config):
+>
+> ```
+> # Caddyfile
+> your-domain.example.com {
+>     reverse_proxy 127.0.0.1:8000
+> }
+> ```
+>
+> Run `./run-html.sh` normally (default `127.0.0.1`, so only Caddy on
+> the same machine can reach it directly) and `caddy run` alongside it;
+> forward the router's port 443 to Caddy, not directly to uvicorn.
 
 Both interfaces can run at the same time, but each opens **its own**
 set of connections to the cameras (they are separate processes) — on a
@@ -561,7 +578,7 @@ The same four screens exist in both interfaces:
 |---|---|
 | **Live** | Grid with every configured camera, with detection boxes drawn according to the task assigned to each one |
 | **Calibration** | Freezes a live frame from a camera so you can draw, by clicking, a counting line or a zone polygon for one of its tasks — saved straight into `tasks.yaml` |
-| **Settings** | List of tasks per camera: add/remove tasks, edit `detect_fps` and `required_ppe`, and enable/edit flags |
+| **Settings** | List of tasks per camera: add/remove tasks (created pre-filled with working defaults — see [Available vision tasks](#available-vision-tasks)), edit `detect_fps`/`required_ppe`/every other type-specific parameter, and enable/edit flags |
 | **Employees** | Employee enrollment for `face_id` (capture from a camera or upload a photo + name); lists who is already enrolled |
 | **Alerts** (side panel) | Live table of recent flags, with the latest narrator summary at the top (when enabled) |
 
@@ -573,7 +590,7 @@ Differences between the two:
 | Live | a fixed grid | adjustable columns and quality; click to expand a camera; add/edit/delete cameras in place (see below) |
 | Calibration | points drawn on a `QGraphicsScene` | numbered points on a `<canvas>`, with the already-saved geometry dashed underneath |
 | Language | follows `app.yaml`, needs a restart | picker in the sidebar, switches instantly |
-| Remote access | no | yes, with `--host 0.0.0.0` (no authentication — see the warning under [Running](#running)) |
+| Remote access | no | yes, with `--host 0.0.0.0` (per-browser session after unlock; add a TLS reverse proxy for internet exposure — see the note under [Running](#running)) |
 
 ## Web interface
 
@@ -674,7 +691,12 @@ not recognize it. Every route except `/api/lock`, `/api/unlock`,
 ## Available vision tasks
 
 Types registered in `tasks/registry.py` (auto-registered when the
-`tasks` package is imported):
+`tasks` package is imported). Adding a task through either interface's
+Settings screen now creates it pre-filled with the working defaults
+below (see each analyzer's `DEFAULT_PARAMS`/`DEFAULT_FLAGS` in
+`tasks/*.py`, the source of truth these numbers are kept in sync with)
+instead of an empty `params: {}` — every parameter listed here is then
+editable directly in Settings, not just by hand-editing `tasks.yaml`.
 
 - **`item_counting`** (`tasks/treadmill_counter.py`) — counts objects
   crossing a line.

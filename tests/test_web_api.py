@@ -14,6 +14,7 @@ from fastapi.testclient import TestClient
 
 from notify.flag import Flag
 from vision.types import Track
+from web import sessions
 from web.server import create_web_app
 
 TASKS_YAML = """\
@@ -154,10 +155,22 @@ def runtime(tasks_path, triggers_path):
     )
 
 
+def _authenticated_client(runtime, start_backend=False):
+    """Builds a TestClient the same way a real browser would end up
+    after POST /api/unlock: carrying a valid session cookie. Routes now
+    reject a request with no session (web/deps.py's get_runtime) even
+    when `runtime` was injected directly like this fixture always did
+    -- otherwise every test here would 401 without ever going through
+    the actual unlock endpoint, which none of them are testing."""
+    client = TestClient(create_web_app(runtime=runtime, start_backend=start_backend))
+    client.cookies.set(sessions.COOKIE_NAME, sessions.create())
+    return client
+
+
 @pytest.fixture
 def client(runtime):
     # start_backend=False: no capture/inference thread is started.
-    return TestClient(create_web_app(runtime=runtime, start_backend=False))
+    return _authenticated_client(runtime)
 
 
 # ---------------------------------------------------------------------- #
@@ -180,7 +193,7 @@ def test_i18n_default_follows_app_yaml(tasks_path):
 
     runtime = _FakeRuntime(tasks_path)
     runtime.app_settings = AppSettings(ui=UiSettings(language="pt"))
-    client = TestClient(create_web_app(runtime=runtime, start_backend=False))
+    client = _authenticated_client(runtime)
 
     assert client.get("/api/i18n").json()["default"] == "pt"
 
@@ -215,8 +228,7 @@ def test_state_exposes_translatable_alert_messages(tasks_path):
                   message_key="flag.missing_ppe",
                   message_params={"track_id": 4, "items": "helmet"},
                   timestamp=100.0)]
-    client = TestClient(create_web_app(runtime=_FakeRuntime(tasks_path, flags=flags),
-                                       start_backend=False))
+    client = _authenticated_client(_FakeRuntime(tasks_path, flags=flags))
 
     alert = client.get("/api/state").json()["alerts"][0]
 
@@ -232,8 +244,7 @@ def test_state_includes_recent_flags(tasks_path):
         Flag(camera_id="cam1", task_type="missing_product", flag_id="missing_product",
              severity="critical", message="second", timestamp=200.0),
     ]
-    client = TestClient(create_web_app(runtime=_FakeRuntime(tasks_path, flags=flags),
-                                       start_backend=False))
+    client = _authenticated_client(_FakeRuntime(tasks_path, flags=flags))
 
     alerts = client.get("/api/state").json()["alerts"]
 
@@ -263,7 +274,7 @@ def test_snapshot_returns_jpeg(client):
 
 
 def test_snapshot_without_frame_returns_503(tasks_path):
-    client = TestClient(create_web_app(runtime=_FakeRuntime(tasks_path), start_backend=False))
+    client = _authenticated_client(_FakeRuntime(tasks_path))
 
     response = client.get("/api/cameras/cam1/snapshot")
 
@@ -580,3 +591,58 @@ def test_pending_action_lifecycle_via_engine(client, runtime, monkeypatch):
     response = client.post(f"/api/triggers/pending/{pending_id}/approve")
     assert response.status_code == 200
     assert client.get("/api/triggers/pending").json() == []
+
+
+# ---------------------------------------------------------------------- #
+# Session auth (web/deps.py, web/sessions.py, security/env_vault.py)
+#
+# Regression coverage for: get_runtime() used to authorize a request
+# purely on "has ANYONE ever unlocked this process", so once the real
+# owner unlocked it once, any other client reaching the port got full
+# access with zero credentials -- and POST /api/unlock itself returned
+# {"ok": True} for any body once already unlocked, without checking the
+# password at all.
+# ---------------------------------------------------------------------- #
+def test_protected_route_without_session_cookie_returns_401(runtime):
+    """A request that never went through POST /api/unlock -- so it
+    carries no session cookie -- must be rejected even though the
+    injected runtime is already "unlocked" (is_unlocked()-equivalent
+    for these tests), matching a second, unauthenticated browser
+    reaching an already-unlocked real instance."""
+    client = TestClient(create_web_app(runtime=runtime, start_backend=False))
+
+    response = client.get("/api/state")
+
+    assert response.status_code == 401
+    assert response.json()["code"] == "api.unauthorized"
+
+
+def test_unlock_rejects_wrong_password_even_when_already_unlocked(tasks_path, tmp_path, monkeypatch):
+    import security.env_vault as env_vault
+
+    # Isolate the vault's process-lifetime module state for this test
+    # (create_with_password() writes a real .env.enc under root_dir),
+    # and restore it afterward so other tests never see it.
+    monkeypatch.setattr(env_vault, "_key", None, raising=False)
+    monkeypatch.setattr(env_vault, "_salt", None, raising=False)
+    monkeypatch.setattr(env_vault, "_values", {}, raising=False)
+    monkeypatch.setattr(env_vault, "_enc_path", None, raising=False)
+    monkeypatch.setattr(env_vault, "_failed_attempts", 0, raising=False)
+
+    env_vault.create_with_password(str(tmp_path), "correct-horse-battery-staple")
+    assert env_vault.is_unlocked()
+
+    client = TestClient(create_web_app(runtime=_FakeRuntime(tasks_path), start_backend=False))
+
+    response = client.post("/api/unlock", json={"password": "wrong"})
+    assert response.status_code == 401
+    assert sessions.COOKIE_NAME not in response.cookies
+
+    env_vault.reset_failed_attempts()
+
+    response = client.post("/api/unlock", json={"password": "correct-horse-battery-staple"})
+    assert response.status_code == 200
+    assert sessions.COOKIE_NAME in response.cookies
+
+    # The freshly-issued cookie now unlocks a protected route.
+    assert client.get("/api/state").status_code == 200

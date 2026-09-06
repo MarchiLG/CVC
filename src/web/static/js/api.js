@@ -23,7 +23,16 @@ async function request(url, options = {}) {
   const response = await fetch(url, options);
 
   if (!response.ok) {
-    throw await buildError(response);
+    const error = await buildError(response);
+    // The session cookie is missing/expired (see web/deps.py's
+    // get_runtime) — everywhere else in the app just throws and lets
+    // the caller show the error, but this one case needs the SPA to
+    // fall back to the lock screen instead, so app.js listens for it
+    // globally rather than every call site checking error.status.
+    if (response.status === 401) {
+      window.dispatchEvent(new CustomEvent('session-expired'));
+    }
+    throw error;
   }
 
   if (response.status === 204) return null;

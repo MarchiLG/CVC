@@ -12,42 +12,6 @@
 
 cameras:
   cam1:
-    tasks:
-      - type: print_monitor
-        detect_fps: 5.0
-        params: {}
-        flags: []
-      #- type: item_counting
-      #  detect_fps: 5
-      #  params:
-      #    counting_line: {p1: [960, 0], p2: [960, 1080]}
-      #    direction: any
-      #    target_classes: [person]
-      #    min_count_per_window: 1
-      #    window_seconds: 120
-      #  flags:
-      #    - id: count_threshold
-      #      enabled: true
-      #      severity: warning
-      #      notify: [log]
-
-      # Face recognition — enroll employees through the "Employees" tab
-      # before enabling this in production, otherwise every face becomes
-      # an "unknown_face".
-      # - type: face_id
-      # detect_fps: 1
-      # params:
-      #   match_threshold: 0.45
-      #   log_unknown: true
-      # flags:
-      #   - id: unknown_face
-      #     enabled: true
-      #     severity: info
-      #     notify: [log]
-
+    tasks: []
   cam2:
-    tasks:
-      - type: face_id
-        detect_fps: 5.0
-        params: {}
-        flags: []
+    tasks: []

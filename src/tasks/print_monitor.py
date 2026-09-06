@@ -70,6 +70,14 @@ def _shape_irregularity(mask) -> float:
 @register("print_monitor")
 class PrintMonitorAnalyzer(TaskAnalyzer):
     type = "print_monitor"
+    DEFAULT_PARAMS = {
+        "print_class": _DEFAULT_PRINT_CLASS,
+        "window_size": _DEFAULT_WINDOW_SIZE,
+        "area_growth_threshold": _DEFAULT_AREA_GROWTH_THRESHOLD,
+        "shape_irregularity_threshold": _DEFAULT_SHAPE_IRREGULARITY_THRESHOLD,
+        "min_history_before_flagging": _DEFAULT_MIN_HISTORY,
+    }
+    DEFAULT_FLAGS = [{"id": "possible_failed_print", "enabled": True, "severity": "critical", "notify": ["log", "desktop"]}]
 
     def __init__(self, camera_id, config):
         super().__init__(camera_id, config)

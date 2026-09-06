@@ -25,6 +25,7 @@ anything that might need a camera URL (AppRuntime.create()).
 
 import base64
 import getpass
+import hmac
 import io
 import os
 import sys
@@ -82,6 +83,19 @@ def _apply_to_environ() -> None:
 # ---------------------------------------------------------------------- #
 def is_unlocked() -> bool:
     return _key is not None
+
+
+def verify_password(password: str) -> bool:
+    """Re-derives the key from `password` and the salt already cached
+    at unlock time, and compares it (constant-time) against the cached
+    key -- without touching disk. Used by the web lock screen to
+    authenticate a SECOND browser after the vault is already unlocked
+    by a first one: is_unlocked() alone cannot tell "anyone, ever" from
+    "this caller, right now", so unlock_vault() (web/api.py) must call
+    this even when is_unlocked() is already True."""
+    if _key is None or _salt is None:
+        return False
+    return hmac.compare_digest(_derive_key(password, _salt), _key)
 
 
 def get(key: str, default: str | None = None) -> str | None:

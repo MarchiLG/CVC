@@ -25,7 +25,7 @@ from PySide6.QtWidgets import (
 
 from config.writer import TasksYamlWriter
 from i18n import DEFAULT_LANGUAGE, t
-from tasks.registry import available_types
+from tasks.registry import available_types, default_flags, default_params
 
 _SEVERITIES = ["info", "warning", "critical"]
 
@@ -155,7 +155,11 @@ class SettingsPanel(QWidget):
             return
         task_type = self.new_type_combo.currentText()
         writer = TasksYamlWriter(self.tasks_yaml_path)
-        writer.add_task(camera_id, task_type)
+        writer.add_task(
+            camera_id, task_type,
+            params=default_params(task_type),
+            flags=default_flags(task_type),
+        )
         self._reload_tasks()
 
     def _remove_task(self, row: int):

@@ -31,6 +31,8 @@ _PRUNE_AFTER_SECONDS = 300.0
 @register("item_counting")
 class ItemCountingAnalyzer(TaskAnalyzer):
     type = "item_counting"
+    DEFAULT_PARAMS = {"direction": "any", "window_seconds": _DEFAULT_WINDOW_SECONDS}
+    DEFAULT_FLAGS = [{"id": "count_threshold", "enabled": True, "severity": "warning", "notify": ["log"]}]
 
     def __init__(self, camera_id, config):
         super().__init__(camera_id, config)

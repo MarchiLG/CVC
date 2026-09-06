@@ -33,6 +33,12 @@ _PRUNE_AFTER_SECONDS = 300.0
 @register("ppe_compliance")
 class PPEComplianceAnalyzer(TaskAnalyzer):
     type = "ppe_compliance"
+    DEFAULT_PARAMS = {
+        "required_ppe": [],
+        "missing_ppe_dwell_seconds": _DEFAULT_DWELL_SECONDS,
+        "person_class": "person",
+    }
+    DEFAULT_FLAGS = [{"id": "missing_ppe", "enabled": True, "severity": "warning", "notify": ["log"]}]
 
     def __init__(self, camera_id, config):
         super().__init__(camera_id, config)

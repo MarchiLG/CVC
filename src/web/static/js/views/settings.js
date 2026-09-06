@@ -157,6 +157,9 @@ export const settingsView = {
       ));
     }
 
+    const otherParams = this.renderOtherParams(task, refs);
+    if (otherParams) body.append(otherParams);
+
     // Geometry (line/zone) is read-only here: it is edited on the
     // Calibration screen, which draws over the video.
     //
@@ -230,6 +233,60 @@ export const settingsView = {
     return lines.join('\n');
   },
 
+  /**
+   * Generic editor for every param this screen has no dedicated field
+   * for — everything except required_ppe (its own field above) and the
+   * geometry-owned keys (counting_line, zones — edited only via the
+   * Calibration screen). Input type is inferred from the current
+   * value, so e.g. face_id's match_threshold or print_monitor's
+   * window_size become editable without a per-type form. Since new
+   * tasks are now created pre-filled with working defaults (see
+   * tasks/base.py's DEFAULT_PARAMS), this is normally non-empty.
+   */
+  renderOtherParams(task, refs) {
+    const skip = new Set(['required_ppe', 'counting_line', 'zones']);
+    const entries = Object.entries(task.params ?? {}).filter(([key]) => !skip.has(key));
+    refs.otherParams = [];
+    if (entries.length === 0) return null;
+
+    const rows = entries.map(([key, value]) => {
+      let input;
+      let read;
+
+      if (typeof value === 'boolean') {
+        input = el('input', { type: 'checkbox', checked: value });
+        read = () => input.checked;
+      } else if (typeof value === 'number') {
+        input = el('input', { type: 'number', class: 'input input--sm', step: 'any', value });
+        read = () => {
+          const num = Number(input.value);
+          if (Number.isNaN(num)) throw new Error('not a number');
+          return num;
+        };
+      } else if (typeof value === 'string') {
+        input = el('input', { type: 'text', class: 'input input--sm', value });
+        read = () => input.value;
+      } else {
+        // array/object (e.g. ocr_languages): edited as its JSON text.
+        input = el('input', { type: 'text', class: 'input input--sm', value: JSON.stringify(value) });
+        read = () => JSON.parse(input.value);
+      }
+
+      refs.otherParams.push({ key, read });
+
+      return el('div', { class: 'field field--inline' },
+        el('label', {}, key),
+        input,
+      );
+    });
+
+    return el('div', { class: 'flag-list' },
+      el('span', { class: 'flag-list__title' }, t('settings.other_params')),
+      el('span', { class: 'panel__hint', style: 'margin:0' }, t('settings.other_params_hint')),
+      ...rows,
+    );
+  },
+
   /** Flags block: one row per flag configured on the task. */
   renderFlags(task, refs) {
     refs.flags = [];
@@ -274,16 +331,28 @@ export const settingsView = {
   async saveTask(task, refs, button) {
     button.disabled = true;
     try {
-      // 1) Task fields. Existing params are preserved and only
-      //    required_ppe is overwritten, so the geometry calibrated on
-      //    the other screen is not wiped out.
+      // 1) Task fields. Existing params (including the geometry
+      //    calibrated on the other screen) are preserved and only the
+      //    fields this card actually edits are overwritten.
       const patch = { detect_fps: Number(refs.detectFps.value) };
 
-      if (refs.requiredPpe) {
-        patch.params = {
-          ...task.params,
-          required_ppe: splitList(refs.requiredPpe.value),
-        };
+      if (refs.requiredPpe || refs.otherParams.length > 0) {
+        const params = { ...task.params };
+
+        if (refs.requiredPpe) {
+          params.required_ppe = splitList(refs.requiredPpe.value);
+        }
+
+        for (const { key, read } of refs.otherParams) {
+          try {
+            params[key] = read();
+          } catch {
+            toast(t('settings.other_params_invalid', { key }), 'error');
+            return;
+          }
+        }
+
+        patch.params = params;
       }
 
       // Empty string ("device default") clears the model: field in

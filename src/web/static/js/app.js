@@ -69,6 +69,14 @@ const app = {
     await this.setupLanguage();
     this.bindExitButtons();
 
+    // Fired by api.js on any 401 (see web/deps.py's get_runtime): the
+    // session cookie this browser had is missing/expired — e.g. the
+    // 12h idle timeout, or the server restarted, which forgets every
+    // session along with the decrypted vault itself. Drop back to the
+    // lock screen instead of leaving whatever screen was open stuck on
+    // a stream of failed requests.
+    window.addEventListener('session-expired', () => this.handleSessionExpired());
+
     let status;
     try {
       status = await api.getLockStatus();
@@ -122,9 +130,26 @@ const app = {
     $('#lock-submit').textContent = t(firstRun ? 'lock.create' : 'lock.unlock');
     $('#lock-password').focus();
 
-    // Bound once: submitUnlock() re-reads #lock-confirm-field's
-    // visibility on every submit, so re-binding on retry is not needed.
-    $('#lock-form').addEventListener('submit', (event) => this.submitUnlock(event));
+    // Bound once (guarded — a session expiring mid-use can bring the
+    // user back here a second time in the same page load, and
+    // submitUnlock() already re-reads #lock-confirm-field's visibility
+    // on every submit, so a second listener would only double-fire it).
+    if (!this._lockFormBound) {
+      this._lockFormBound = true;
+      $('#lock-form').addEventListener('submit', (event) => this.submitUnlock(event));
+    }
+  },
+
+  /** A previously-valid session stopped being accepted (idle timeout,
+   *  or the server restarted) — stop polling and show the lock screen
+   *  again instead of leaving the current screen spinning on 401s. */
+  handleSessionExpired() {
+    if (this.pollTimer) {
+      clearInterval(this.pollTimer);
+      this.pollTimer = null;
+    }
+    liveView.suspend();
+    this.showLockScreen(false);
   },
 
   async submitUnlock(event) {

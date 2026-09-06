@@ -30,3 +30,17 @@ def create(task_type: str, camera_id: str, config: TaskConfig) -> TaskAnalyzer:
 
 def available_types() -> list[str]:
     return list(_REGISTRY.keys())
+
+
+def default_params(task_type: str) -> dict:
+    """Seed `params` for a newly-created task of this type — see each
+    analyzer's DEFAULT_PARAMS (tasks/base.py)."""
+    cls = _REGISTRY.get(task_type)
+    return dict(cls.DEFAULT_PARAMS) if cls else {}
+
+
+def default_flags(task_type: str) -> list[dict]:
+    """Seed `flags` for a newly-created task of this type — see each
+    analyzer's DEFAULT_FLAGS (tasks/base.py)."""
+    cls = _REGISTRY.get(task_type)
+    return [dict(flag) for flag in cls.DEFAULT_FLAGS] if cls else []
