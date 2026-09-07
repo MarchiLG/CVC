@@ -33,7 +33,7 @@
   --accent-dim:   rgba(70, 213, 199, 0.12);
   --accent-text:  #062723;   /* text ON TOP of the accent (high contrast) */
 
-  /* ---- Severities (the same ones in the Qt GUI's alerts_panel.py) ----- */
+  /* ---- Severities (info | warning | critical, see notify/flag.py) ----- */
   --critical:     #f2545b;
   --critical-dim: rgba(242, 84, 91, 0.12);
   --warning:      #f0a92b;

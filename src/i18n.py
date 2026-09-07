@@ -3,24 +3,18 @@ i18n.py
 
 The single translation catalog for the whole application.
 
-Both interfaces read from here, so a wording change lands in both at
-once:
-
-    the desktop GUI (PySide6)  imports t() directly and renders in the
-                               language from app.yaml -> ui.language
-    the web UI                 fetches the catalog from GET /api/i18n
-                               and translates in the browser, which is
-                               what makes the language picker switch the
-                               page instantly, without a reload
+The web UI fetches the catalog from GET /api/i18n and translates in the
+browser, which is what makes the language picker switch the page
+instantly, without a reload.
 
 Only two languages are supported on purpose: English (the default) and
-Portuguese. To add a third, add its code to LANGUAGES, add a dict to
-CATALOG with the same keys, and both interfaces pick it up — the web
-language picker is built from LANGUAGES.
+Portuguese. To add a third, add its code to LANGUAGES and a dict to
+CATALOG with the same keys — the web language picker is built from
+LANGUAGES, so it picks up the addition on its own.
 
 Keys are grouped by area with a "group.name" convention. Placeholders
 use Python's str.format syntax ({name}), which the JavaScript side
-implements too — so the SAME string works in both interfaces.
+implements too — so the SAME string works on both ends.
 """
 
 # Supported languages, in the order the picker shows them. The first
@@ -297,48 +291,6 @@ CATALOG: dict[str, dict[str, str]] = {
         "api.face_unavailable": "Face recognition unavailable: install 'insightface' and 'onnxruntime'.",
         "api.generic": "Request failed ({status}).",
 
-        # ---- Desktop GUI only
-        "qt.alerts_dock": "Alerts",
-        "qt.col.time": "Time",
-        "qt.col.camera": "Camera",
-        "qt.col.severity": "Severity",
-        "qt.col.task": "Task",
-        "qt.col.message": "Message",
-        "qt.summary_placeholder": "No summary yet.",
-        "qt.invalid_calibration": "Invalid calibration",
-        "qt.no_frame_title": "No frame",
-        "qt.saved_title": "Saved",
-        "qt.tasks_saved": "Task changes saved.",
-        "qt.flags_saved": "Flags saved.",
-        "qt.remove_task_title": "Remove task",
-        "qt.remove_task_question": "Remove this task?",
-        "qt.error": "Error",
-        "qt.image_open_failed": "Could not open the selected image.",
-        "qt.select_photo": "Select photo",
-        "qt.images_filter": "Images (*.png *.jpg *.jpeg)",
-        "qt.load_photo": "Load photo...",
-        "qt.finish_polygon": "Finish polygon",
-        "qt.polygon_ready": "Polygon with {count} points ready to save.",
-        "qt.task_selected": "Selected task: {type}",
-        "qt.saved_to_yaml": "Saved to tasks.yaml.",
-        "qt.no_face_title": "No face found",
-        "qt.enrolled": "Employee '{name}' enrolled.",
-        "qt.enroll_hint": "Capture or load a photo with a visible face.",
-        "qt.photo_loaded": "Photo loaded. Enter the name and click Enroll.",
-        "qt.no_photo_title": "No photo",
-        "qt.no_photo": "Capture or load a photo first.",
-        "qt.tasks_label": "Tasks",
-        "qt.flags_label": "Flags of the selected task",
-        "qt.save_tasks": "Save task changes",
-        "qt.save_flags": "Save flags",
-        "qt.new_task": "New task:",
-        "qt.col.type": "Type",
-        "qt.col.model": "Model",
-        "qt.col.required_ppe": "Required PPE (ppe_compliance)",
-        "qt.col.remove": "Remove",
-        "qt.col.enabled": "enabled",
-        "qt.col.notify": "notify (log,desktop)",
-        "qt.col.id": "id",
     },
 
     # ------------------------------------------------------------------ #
@@ -605,48 +557,6 @@ CATALOG: dict[str, dict[str, str]] = {
         "api.face_unavailable": "Reconhecimento facial indisponível: instale 'insightface' e 'onnxruntime'.",
         "api.generic": "A requisição falhou ({status}).",
 
-        # ---- Desktop GUI only
-        "qt.alerts_dock": "Alertas",
-        "qt.col.time": "Hora",
-        "qt.col.camera": "Câmera",
-        "qt.col.severity": "Severidade",
-        "qt.col.task": "Tarefa",
-        "qt.col.message": "Mensagem",
-        "qt.summary_placeholder": "Nenhum resumo ainda.",
-        "qt.invalid_calibration": "Calibração inválida",
-        "qt.no_frame_title": "Sem frame",
-        "qt.saved_title": "Salvo",
-        "qt.tasks_saved": "Alterações de tarefas salvas.",
-        "qt.flags_saved": "Flags salvos.",
-        "qt.remove_task_title": "Remover tarefa",
-        "qt.remove_task_question": "Remover esta tarefa?",
-        "qt.error": "Erro",
-        "qt.image_open_failed": "Não foi possível abrir a imagem selecionada.",
-        "qt.select_photo": "Selecionar foto",
-        "qt.images_filter": "Imagens (*.png *.jpg *.jpeg)",
-        "qt.load_photo": "Carregar foto...",
-        "qt.finish_polygon": "Finalizar polígono",
-        "qt.polygon_ready": "Polígono com {count} pontos pronto para salvar.",
-        "qt.task_selected": "Tarefa selecionada: {type}",
-        "qt.saved_to_yaml": "Salvo em tasks.yaml.",
-        "qt.no_face_title": "Nenhum rosto encontrado",
-        "qt.enrolled": "Funcionário '{name}' cadastrado.",
-        "qt.enroll_hint": "Capture ou carregue uma foto com um rosto visível.",
-        "qt.photo_loaded": "Foto carregada. Informe o nome e clique em Cadastrar.",
-        "qt.no_photo_title": "Sem foto",
-        "qt.no_photo": "Capture ou carregue uma foto primeiro.",
-        "qt.tasks_label": "Tarefas",
-        "qt.flags_label": "Flags da tarefa selecionada",
-        "qt.save_tasks": "Salvar alterações de tarefas",
-        "qt.save_flags": "Salvar flags",
-        "qt.new_task": "Nova tarefa:",
-        "qt.col.type": "Tipo",
-        "qt.col.model": "Modelo",
-        "qt.col.required_ppe": "EPI exigido (ppe_compliance)",
-        "qt.col.remove": "Remover",
-        "qt.col.enabled": "habilitado",
-        "qt.col.notify": "notify (log,desktop)",
-        "qt.col.id": "id",
     },
 }
 

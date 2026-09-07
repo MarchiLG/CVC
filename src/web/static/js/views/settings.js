@@ -10,8 +10,7 @@
  * fires two calls — one for the task fields and one for the flags.
  *
  * After saving, `api.reload()` rebuilds the inference pipelines with the
- * new YAML, so the change takes effect immediately (the Qt GUI only
- * writes the file; the difference is documented in the README).
+ * new YAML, so the change takes effect immediately — no restart needed.
  */
 
 import { api } from '../api.js';

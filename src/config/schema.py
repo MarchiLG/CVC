@@ -72,10 +72,10 @@ class NotifySettings:
 class UiSettings:
     """Interface language.
 
-    English is the default. It sets the language of the desktop GUI and
-    of the LLM narrator summaries, and it is the language the web
-    interface starts in — there, the picker in the sidebar overrides it
-    per browser (see web/static/js/i18n.js).
+    English is the default. It sets the language of the LLM narrator
+    summaries, and it is the language the web interface starts in —
+    there, the picker in the sidebar overrides it per browser (see
+    web/static/js/i18n.js).
     """
 
     language: str = "en"  # "en" | "pt"

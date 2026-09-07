@@ -2,9 +2,8 @@
  * i18n.js — translation for the web interface.
  *
  * The catalog is NOT stored here: it is fetched once from
- * GET /api/i18n, which serves src/i18n.py. That is deliberate — the
- * desktop GUI reads the same file, so wording is edited in exactly one
- * place and never drifts between the two interfaces.
+ * GET /api/i18n, which serves src/i18n.py — so wording is edited in
+ * exactly one place.
  *
  * Switching language does not reload the page. `setLanguage()` swaps the
  * active dictionary, re-runs `applyTranslations()` over the static

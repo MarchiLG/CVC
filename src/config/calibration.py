@@ -5,21 +5,15 @@ Geometry calibration rules: turns a list of points clicked over a frame
 into the corresponding `params` block of a task in tasks.yaml (counting
 line or zone polygon), validating what each task type requires.
 
-It lives here, outside the interfaces, because BOTH UIs calibrate:
-
-    gui_qt/widgets/calibration_view.py   draws on a QGraphicsScene and
-                                         shows errors in a QMessageBox
-    web/api.py                           receives the points from the
-                                         <canvas> and returns errors as
-                                         HTTP 400
-
-Both call build_geometry_params() and differ only in HOW they present
-the error message — the validation itself exists once.
+It lives here, outside web/api.py, so the validation is testable on its
+own: web/api.py receives the points from the <canvas> and returns
+errors as HTTP 400, calling build_geometry_params() for the actual
+logic.
 
 Coordinates are always in pixels of the frame at its NATIVE resolution
 (the same system used by counting_line/zones in tasks.yaml), never in
-screen pixels: each UI is responsible for converting clicks back to the
-native scale before calling in here.
+screen pixels: the caller is responsible for converting clicks back to
+the native scale before calling in here.
 """
 
 # Task types calibrated with a LINE (exactly 2 points).
@@ -32,9 +26,9 @@ ZONE_TYPES = {"ppe_compliance", "missing_product"}
 class CalibrationError(ValueError):
     """Invalid geometry for the task type.
 
-    `code` is a stable identifier the interfaces translate for display
+    `code` is a stable identifier the web UI translates for display
     (see web/static/js/i18n.js); the message carried by the exception is
-    the English fallback, used by the desktop GUI and the logs.
+    the English fallback, used by the logs.
     """
 
     def __init__(self, code: str, message: str):

@@ -4,11 +4,9 @@ overlay.py
 Draws detections/tracks (and calibrated geometry: counting lines and
 zones) over an OpenCV BGR frame.
 
-It lives here, and not inside one of the interfaces, because BOTH UIs
-draw exactly the same overlay: the PySide6 GUI
-(gui_qt/widgets/camera_tile.py) and the MJPEG stream of the web UI
-(web/streaming.py). Changing how the boxes look in one place therefore
-changes both.
+It lives here, outside web/streaming.py, so the drawing logic is
+testable on its own and easy to reuse if another consumer of frames
+(e.g. a snapshot endpoint) needs the same overlay.
 
 Color convention: OpenCV works in BGR, so every constant below is in
 BGR (not RGB/hex like in CSS).
@@ -19,7 +17,7 @@ import zlib
 
 import cv2
 
-# Default box color (BGR) — green, same as the original Qt GUI.
+# Default box color (BGR) — green.
 BOX_COLOR = (0, 255, 0)
 
 # Calibrated geometry drawn on top of the video.
@@ -33,14 +31,13 @@ def color_for_class(class_name: str) -> tuple[int, int, int]:
     """Stable color (BGR) per class name.
 
     Derives the hue from a checksum of the name, so "person" always gets
-    the same color — across runs, across cameras and across both
-    interfaces — without needing a fixed class table (the YOLO model may
-    have any vocabulary, including one trained for PPE).
+    the same color — across runs and across cameras — without needing a
+    fixed class table (the YOLO model may have any vocabulary, including
+    one trained for PPE).
 
     Uses crc32 and NOT the built-in hash(): Python string hashing is
     randomly salted per process (PYTHONHASHSEED), which would give a
-    different color on every run and different colors between the Qt GUI
-    and the web server, which are separate processes.
+    different color on every run.
     """
     hue = (zlib.crc32(class_name.encode("utf-8")) % 360) / 360.0
     r, g, b = colorsys.hsv_to_rgb(hue, 0.65, 1.0)

@@ -13,9 +13,8 @@
  * zones would be offset from the real video.
  *
  * Validation (2 points for a line, 3+ for a zone, name required) happens
- * on the backend in config/calibration.py, the SAME module the Qt GUI
- * uses — here we only display whatever error comes back, already
- * translated by api.js.
+ * on the backend in config/calibration.py — here we only display
+ * whatever error comes back, already translated by api.js.
  */
 
 import { api } from '../api.js';
@@ -165,8 +164,7 @@ export const calibrationView = {
     const task = this.task;
     if (!this.frameImage || !task) return;
 
-    // A line takes exactly 2 points: the third click starts over, the
-    // same behavior as the Qt GUI.
+    // A line takes exactly 2 points: the third click starts over.
     if (task.geometry === 'line' && this.points.length >= 2) {
       this.points = [];
     }

@@ -19,16 +19,16 @@ runs. That cached key is what lets the web UI add/edit/delete a camera
 (which rewrites .env.enc) without asking for the password again on
 every single change; it is lost the moment the process exits.
 
-Called once, at the very start of main.py / main_web.py, before
-anything that might need a camera URL (AppRuntime.create()).
+Unlocked from the browser's lock screen (POST /api/unlock in
+web/api.py) before anything that might need a camera URL
+(AppRuntime.create()) — see create_with_password() and
+unlock_with_password() below.
 """
 
 import base64
-import getpass
 import hmac
 import io
 import os
-import sys
 
 from cryptography.fernet import Fernet, InvalidToken
 from cryptography.hazmat.primitives import hashes
@@ -78,8 +78,9 @@ def _apply_to_environ() -> None:
 
 
 # ---------------------------------------------------------------------- #
-# Non-interactive core (used by unlock_interactive() below, and callable
-# directly by anything that already has the password -- tests, scripts).
+# Core -- called from web/api.py's /api/unlock route once it has the
+# password from the browser's lock screen, and directly by anything
+# else that already has the password (tests, scripts).
 # ---------------------------------------------------------------------- #
 def is_unlocked() -> bool:
     return _key is not None
@@ -105,9 +106,7 @@ def get(key: str, default: str | None = None) -> str | None:
 def record_failed_attempt() -> int:
     """Counts one more wrong-password attempt (across requests, for the
     web lock screen -- POST /api/unlock in web/api.py) and returns how
-    many are left before the brute-force guard kicks in. The terminal
-    flow (unlock_interactive, below) counts attempts within its own
-    retry loop instead, so it does not touch this counter."""
+    many are left before the brute-force guard kicks in."""
     global _failed_attempts
     _failed_attempts += 1
     return max(0, MAX_ATTEMPTS - _failed_attempts)
@@ -200,65 +199,3 @@ def delete_value(key: str) -> None:
     _persist()
 
 
-# ---------------------------------------------------------------------- #
-# Interactive entry point
-# ---------------------------------------------------------------------- #
-def _prompt_password(prompt: str) -> str:
-    try:
-        return getpass.getpass(prompt)
-    except (EOFError, KeyboardInterrupt):
-        print()
-        print("Cancelled.")
-        sys.exit(1)
-
-
-def _first_run_interactive(root_dir: str) -> None:
-    print("=" * 72)
-    print("First run: choose a password to encrypt your camera credentials")
-    print(f"({ENV_FILENAME} -> {ENC_FILENAME}). You will be asked for it every")
-    print("time the application starts. It is never written to disk.")
-    print("=" * 72)
-
-    while True:
-        password = _prompt_password("New password: ")
-        if not password:
-            print("Password cannot be empty.")
-            continue
-        confirm = _prompt_password("Confirm password: ")
-        if password != confirm:
-            print("Passwords do not match, try again.")
-            continue
-        break
-
-    create_with_password(root_dir, password)
-    print(f"-> Credentials encrypted into {ENC_FILENAME}"
-          + (f" ({ENV_FILENAME} removed)." if not os.path.exists(os.path.join(root_dir, ENV_FILENAME)) else "."))
-
-
-def _unlock_interactive(root_dir: str) -> None:
-    for attempt in range(1, MAX_ATTEMPTS + 1):
-        password = _prompt_password(f"Password to unlock {ENC_FILENAME}: ")
-        try:
-            unlock_with_password(root_dir, password)
-            return
-        except VaultError:
-            remaining = MAX_ATTEMPTS - attempt
-            if remaining:
-                print(f"Wrong password ({remaining} attempt(s) left).")
-
-    print("Too many failed attempts.")
-    sys.exit(1)
-
-
-def unlock_interactive(root_dir: str) -> None:
-    """Unlocks (or, on first run, creates) the encrypted credential
-    store, then loads every value into os.environ.
-
-    Exits the process on cancellation or too many failed attempts --
-    call this once, before AppRuntime.create()."""
-    enc_path = os.path.join(root_dir, ENC_FILENAME)
-
-    if os.path.exists(enc_path):
-        _unlock_interactive(root_dir)
-    else:
-        _first_run_interactive(root_dir)

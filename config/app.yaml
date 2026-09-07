@@ -4,12 +4,12 @@
 ui:
   # Interface language: en | pt (English is the default).
   #
-  # This sets the language of the desktop GUI (./run.sh) and of the LLM
-  # narrator summaries. The web interface (./run-html.sh) starts in this
-  # language too, but there a picker in the sidebar overrides it per
-  # browser — no restart needed.
+  # This sets the language of the LLM narrator summaries and the
+  # language the web interface (./run-html.sh, or run.bat on Windows)
+  # starts in — there, a picker in the sidebar overrides it per browser,
+  # no restart needed.
   #
-  # The wording of both interfaces lives in a single catalog, src/i18n.py.
+  # The wording of the interface lives in a single catalog, src/i18n.py.
   language: en
 
 vision:

@@ -10,11 +10,9 @@
  *
  * Why polling and not a WebSocket: the backend is already synchronous
  * and keeps the "last value" of everything (results_store,
- * flag_manager.recent) — exactly like the Qt GUI, which also reads on a
- * timer (a 100ms QTimer in gui_qt/main_window.py). One request per
- * second to /api/state delivers the same result with far fewer moving
- * parts. VIDEO does not go through here: it is MJPEG straight into an
- * <img> (see views/live.js).
+ * flag_manager.recent). One request per second to /api/state delivers
+ * that with far fewer moving parts. VIDEO does not go through here: it
+ * is MJPEG straight into an <img> (see views/live.js).
  */
 
 import { api } from './api.js';

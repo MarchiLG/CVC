@@ -29,17 +29,14 @@ ultralytics
 # Desktop notifications
 plyer
 
-# Desktop GUI — the native interface, no browser (./run.sh).
-# ruamel.yaml preserves the comments/formatting of tasks.yaml when
-# saving from the calibration/settings screens, in BOTH interfaces.
-PySide6
+# ruamel.yaml preserves the comments/formatting of tasks.yaml/
+# cameras.yaml/Triggers.yaml when saving from the calibration/settings
+# screens.
 ruamel.yaml
 
-# Web interface (./run-html.sh) — serves the HTML/CSS/JS UI from
-# src/web/static/ and exposes the backend as a REST API + MJPEG
-# streaming. Just three lightweight packages (nothing compiled): the web
-# UI does NOT need PySide6, so on a headless server you can drop the
-# PySide6 line above and run the web version alone.
+# Web interface — serves the HTML/CSS/JS UI from src/web/static/ and
+# exposes the backend as a REST API + MJPEG streaming. Just three
+# lightweight packages, nothing compiled.
 # python-multipart is required by FastAPI to receive the photo upload on
 # the employee enrollment screen.
 fastapi

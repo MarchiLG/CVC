@@ -13,8 +13,7 @@ Delivers video to the browser in two formats:
             frozen frame at native resolution so the clicked
             coordinates match the pixels stored in tasks.yaml).
 
-The detection boxes are drawn here by the same vision/overlay.py used
-by the Qt GUI, so both interfaces show the same overlay.
+The detection boxes are drawn here by vision/overlay.py.
 """
 
 import logging

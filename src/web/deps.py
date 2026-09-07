@@ -8,12 +8,9 @@ modules: server.py imports api.py to register the routes, so api.py
 cannot import server.py back.
 
 `_runtime` is None from process start until the credential vault
-(src/security/env_vault.py) is unlocked: the web app now starts LOCKED
+(src/security/env_vault.py) is unlocked: the web app starts LOCKED
 and POST /api/unlock builds and assigns the real AppRuntime once the
-browser's lock screen posts the right password (see web/api.py) — the
-desktop GUI (src/main.py) still unlocks it before ever calling
-create_web_app-equivalent code, so for it `_runtime` is only ever set
-once, same as before.
+browser's lock screen posts the right password (see web/api.py).
 
 get_runtime() used to treat "_runtime is not None" as the entire
 authorization check — i.e. "has anyone, ever, unlocked this process",

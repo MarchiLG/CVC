@@ -1,9 +1,8 @@
 """
 Tests for the shared translation catalog (src/i18n.py).
 
-The catalog feeds BOTH interfaces — the desktop GUI imports t()
-directly, the web UI fetches it through GET /api/i18n — so a key missing
-from one language would show up as untranslated text in both. The
+The web UI fetches the catalog through GET /api/i18n, so a key missing
+from one language would show up as untranslated text on screen. The
 completeness test below is what keeps that from happening silently.
 """
 
@@ -119,8 +118,8 @@ def test_invalid_language_falls_back_instead_of_breaking(tmp_path):
 # Error codes reaching the catalog
 # ---------------------------------------------------------------------- #
 def test_calibration_errors_carry_a_translatable_code():
-    """Both interfaces translate CalibrationError.code — the Qt GUI
-    through t(), the browser through the same key in i18n.js."""
+    """The browser translates CalibrationError.code through the same
+    key in i18n.js."""
     with pytest.raises(CalibrationError) as excinfo:
         build_geometry_params("item_counting", {}, [(1.0, 2.0)])
 

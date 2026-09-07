@@ -1,11 +1,10 @@
 """
 Tests for the web API (src/web/api.py).
 
-They follow the same pattern as the Qt GUI tests: a fake
-CameraManager/runtime in place of the real backend, so nothing here
-opens a camera, loads YOLO or depends on the network. The routes are
-exercised through FastAPI's TestClient, which speaks real HTTP to the
-in-memory app.
+A fake CameraManager/runtime stands in for the real backend, so nothing
+here opens a camera, loads YOLO or depends on the network. The routes
+are exercised through FastAPI's TestClient, which speaks real HTTP to
+the in-memory app.
 """
 
 import numpy as np
@@ -345,7 +344,7 @@ def test_put_flags_updates_severity_and_channels(client):
 
 
 # ---------------------------------------------------------------------- #
-# Calibration — the same validation the Qt GUI uses (config/calibration.py)
+# Calibration — validated by config/calibration.py
 # ---------------------------------------------------------------------- #
 def test_geometry_saves_counting_line(client):
     response = client.post("/api/cameras/cam1/tasks/0/geometry",

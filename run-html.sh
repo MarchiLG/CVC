@@ -1,10 +1,7 @@
 #!/usr/bin/env bash
 # run-html.sh — sets up the environment (the first time) and runs the
-# application with the WEB interface (HTML/CSS/JS in the browser).
-#
-# It is the counterpart of ./run.sh: same backend (cameras, YOLO, alerts,
-# narrator), different interface. Use ./run.sh for the native desktop GUI
-# (PySide6), which needs no browser.
+# application (HTML/CSS/JS in the browser). This is the Linux/macOS
+# launcher; see run.bat for the Windows equivalent.
 #
 # Usage:
 #   ./run-html.sh                  starts and opens the browser at localhost:8000

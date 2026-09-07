@@ -6,9 +6,8 @@
  * embedding with InsightFace and stores it in SQLite. THE PHOTO ITSELF
  * IS NOT STORED — only the vector.
  *
- * Mirrors the gui_qt/widgets/employee_enrollment.py screen of the
- * desktop GUI; both write to the same database (data/app.db), so an
- * enrollment made here shows up there and vice versa.
+ * Writes to the same database (data/app.db) as GET/POST /api/employees
+ * in src/web/api.py.
  */
 
 import { api } from '../api.js';

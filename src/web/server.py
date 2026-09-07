@@ -7,15 +7,14 @@ Builds the FastAPI app that serves the web interface:
     /static/*    -> CSS and JS (edit these files to change the looks)
     /api/*       -> routes in api.py
 
-Lifecycle: unlike the desktop GUI (src/main.py), which unlocks the
-credential vault on the terminal BEFORE anything else, the web app
-starts LOCKED — no AppRuntime, no camera threads — so it can be opened
-by double-clicking run-html.sh with no terminal to type a password
-into. The browser's lock screen posts the password to POST
-/api/unlock (src/web/api.py), which builds bootstrap.AppRuntime and
-starts it from there; see src/security/env_vault.py for the encryption
-itself. `runtime=` below skips all of that (used by tests, which pass
-an already-"unlocked" fake).
+Lifecycle: the web app starts LOCKED — no AppRuntime, no camera threads
+— so it can be opened by double-clicking run-html.sh (or run.bat on
+Windows) with no terminal to type a password into. The browser's lock
+screen posts the password to POST /api/unlock (src/web/api.py), which
+builds bootstrap.AppRuntime and starts it from there; see
+src/security/env_vault.py for the encryption itself. `runtime=` below
+skips all of that (used by tests, which pass an already-"unlocked"
+fake).
 
 This module is not meant to be run directly — use src/main_web.py (or
 ./run-html.sh), which resolves sys.path and starts uvicorn.

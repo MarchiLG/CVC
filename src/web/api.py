@@ -167,8 +167,8 @@ def get_i18n():
 
     The browser fetches this once at startup and switches language
     locally — no reload and no round-trip per language change. The
-    catalog lives in src/i18n.py and is shared with the desktop GUI, so
-    there is only one place to edit wording.
+    catalog lives in src/i18n.py, so there is only one place to edit
+    wording.
 
     Deliberately does NOT require the vault to be unlocked (uses
     peek_runtime(), not get_runtime()) — the lock screen itself needs
@@ -218,9 +218,7 @@ def get_lock_status():
 def unlock_vault(payload: UnlockPayload, request: Request, response: Response):
     """Unlocks (or, on first run, creates) the encrypted credential
     store from the browser's lock screen, then builds and starts the
-    real backend — the web equivalent of the terminal prompt in
-    security/env_vault.py's unlock_interactive(), which the desktop GUI
-    (src/main.py) still uses instead of this route.
+    real backend.
 
     Every successful call — including a SECOND browser reaching an
     already-unlocked instance — must present the real password and, in
@@ -825,8 +823,8 @@ def update_flags(camera_id: str, task_index: int, payload: FlagsUpdatePayload, r
 
 @router.post("/cameras/{camera_id}/tasks/{task_index}/geometry")
 def save_geometry(camera_id: str, task_index: int, payload: GeometryPayload, runtime=Depends(get_runtime)):
-    """Saves the line/zone drawn on the calibration screen. Validation
-    is the same as the Qt GUI's (config/calibration.py)."""
+    """Saves the line/zone drawn on the calibration screen (validated by
+    config/calibration.py)."""
     writer = TasksYamlWriter(runtime.tasks_yaml_path)
     task = _require_task(writer, camera_id, task_index)
 
@@ -859,10 +857,9 @@ def reload_pipelines(runtime=Depends(get_runtime)):
     """Rebuilds the inference pipelines from the current tasks.yaml,
     without restarting the application.
 
-    Without this, editing tasks through the UI would only take effect on
-    the next run (that is the Qt GUI's behavior, which only writes the
-    YAML). The already-loaded YOLO weights are reused through the
-    ModelRegistry, so the rebuild is fast."""
+    Without this, editing tasks through the UI would only write the YAML
+    and take effect on the next run. The already-loaded YOLO weights are
+    reused through the ModelRegistry, so the rebuild is fast."""
     count = runtime.reload_tasks()
     return {"ok": True, "pipeline_count": count}
 
@@ -1048,11 +1045,8 @@ async def enroll_employee(
     runtime=Depends(get_runtime),
 ):
     """Enrolls an employee from a photo uploaded by the browser OR from
-    the current frame of a camera.
-
-    Mirrors gui_qt/widgets/employee_enrollment.py: extracts the face
-    embedding with InsightFace and stores employee + vector in the
-    database."""
+    the current frame of a camera: extracts the face embedding with
+    InsightFace and stores employee + vector in the database."""
     name = name.strip()
     if not name:
         raise ApiError(400, "api.employee_name_required")

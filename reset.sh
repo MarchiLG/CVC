@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
-# reset.sh — wipes every generated/local file so the next ./run.sh or
-# ./run-html.sh starts from a clean install: virtual environment,
+# reset.sh — wipes every generated/local file so the next ./run-html.sh
+# starts from a clean install: virtual environment,
 # Python caches, the SQLite event log, and the encrypted camera
 # credentials (.env / .env.enc).
 #
@@ -91,5 +91,5 @@ if [ "$PURGE_MODELS" = "1" ]; then
 fi
 
 echo
-echo "Done. Run ./run.sh or ./run-html.sh to set up a fresh environment"
+echo "Done. Run ./run-html.sh (or run.bat on Windows) to set up a fresh environment"
 echo "(it will recreate .venv, and .env from .env.example if missing)."

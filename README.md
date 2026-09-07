@@ -10,17 +10,11 @@ triggers that drive external IO devices (MQTT, Modbus TCP, HTTP
 webhook), and natural-language summaries produced by a local LLM
 through Ollama.
 
-There are **two interfaces** on top of the same backend, and you pick
-which one to use when you start it:
-
-| Interface | How to run | What it is |
-|---|---|---|
-| **Desktop** | `./run.sh` | Native GUI in PySide6 (Qt), no browser |
-| **Web** | `./run-html.sh` | UI in HTML/CSS/JS opened in the browser, served by a local server (FastAPI) |
-
-Both show the same cameras and the same alerts, and edit the same
-configuration files — only the presentation layer differs. Neither
-replaces the other.
+The interface is a **web UI** — HTML/CSS/JS opened in the browser,
+served by a local server (FastAPI) — started with `./run-html.sh` on
+Linux/macOS or `run.bat` on Windows. There is no separate native/
+desktop build to install; the same script works headless on a server
+too.
 
 The interface is available in **English (the default) and
 Portuguese** — see [Language](#language).
@@ -47,10 +41,9 @@ Portuguese** — see [Language](#language).
 
 ```
 src/
-├── main.py            # entry point of the desktop GUI (PySide6)
 ├── main_web.py        # entry point of the web interface (FastAPI + browser)
-├── bootstrap.py       # assembles and starts the backend — shared by BOTH interfaces
-├── i18n.py            # the single translation catalog, shared by BOTH interfaces
+├── bootstrap.py       # assembles and starts the backend
+├── i18n.py            # the single translation catalog
 ├── camera/
 │   ├── camera_stream.py    # continuous capture of ONE camera on its own thread (OpenCV)
 │   └── camera_manager.py   # loads cameras.yaml and orchestrates one CameraStream per camera
@@ -58,19 +51,19 @@ src/
 │   ├── schema.py            # configuration dataclasses (cameras, tasks, app.yaml)
 │   ├── loader.py            # reading/parsing cameras.yaml, tasks.yaml and app.yaml
 │   ├── writer.py            # writing tasks.yaml preserving comments (ruamel.yaml)
-│   └── calibration.py       # line/zone rules, shared by both interfaces
+│   └── calibration.py       # line/zone rules
 ├── vision/
 │   ├── detector.py          # runs the YOLO model (ultralytics) over a frame
 │   ├── tracker.py           # object tracking across frames
 │   ├── device.py            # automatic device resolution (cuda/cpu) and default model
 │   ├── model_registry.py    # cache of loaded YOLO instances, per (model, device)
-│   ├── overlay.py           # draws the boxes onto the frame, used by both interfaces
+│   ├── overlay.py           # draws the boxes onto the frame
 │   └── face/recognizer.py   # face recognition (InsightFace)
 ├── pipeline/
 │   ├── builder.py            # assembles one CameraPipeline (Detector + Tracker) per camera
 │   ├── camera_pipeline.py    # runs the tasks assigned to a camera over each frame
 │   ├── inference_engine.py   # single inference thread iterating over every camera
-│   └── results_store.py      # last inference result per camera, for the interfaces
+│   └── results_store.py      # last inference result per camera, for the web UI
 ├── tasks/
 │   ├── base.py               # TaskAnalyzer interface
 │   ├── registry.py           # maps "type" (tasks.yaml) -> TaskAnalyzer class
@@ -88,15 +81,7 @@ src/
 ├── llm/
 │   ├── ollama_client.py # client for the local Ollama service
 │   └── narrator.py      # produces periodic summaries of recent alerts
-├── gui_qt/                      # INTERFACE 1: native desktop GUI (./run.sh)
-│   ├── app.py, main_window.py
-│   └── widgets/
-│       ├── camera_grid.py, camera_tile.py   # live video grid
-│       ├── calibration_view.py               # drawing lines/zones over a frozen frame
-│       ├── settings_panel.py                 # editing tasks per camera
-│       ├── employee_enrollment.py            # employee enrollment (face recognition)
-│       └── alerts_panel.py                   # alerts table + narrator summary
-└── web/                         # INTERFACE 2: web UI (./run-html.sh)
+└── web/                         # THE WEB INTERFACE (./run-html.sh / run.bat)
     ├── server.py         # FastAPI app: serves the static files and the routes
     ├── api.py            # REST routes (cameras, tasks, calibration, employees)
     ├── streaming.py      # live MJPEG video and JPEG snapshots
@@ -128,13 +113,10 @@ channels (log, desktop notification and/or the `event_log` table in
 SQLite).
 
 All of that is assembled by `bootstrap.AppRuntime`, which **knows
-nothing about interfaces**. Each entry point only does
-`runtime = AppRuntime.create(); runtime.start()` and then reads the
-`ResultsStore` and the `FlagManager` the way its presentation layer
-wants: `MainWindow` (PySide6) draws into Qt widgets; the web server
-exposes the same data as JSON and the video as MJPEG, and the browser
-draws the rest. Changes to the backend apply to both interfaces
-automatically.
+nothing about the web layer**. `main_web.py` only does
+`runtime = AppRuntime.create(); runtime.start()` and then the web
+server exposes `ResultsStore`/`FlagManager` as JSON and the video as
+MJPEG, with the browser drawing the rest.
 
 Cameras that use the same YOLO model share the same loaded instance
 (`ModelRegistry`), avoiding reloading weights and duplicating memory.
@@ -144,36 +126,38 @@ Cameras that use the same YOLO model share the same loaded instance
 Requires Python 3 and, optionally, an NVIDIA GPU with CUDA for better
 performance — the application also works on CPU.
 
-Recommended path — the `run.sh` (desktop) and `run-html.sh` (web)
-scripts take care of everything on the first run (they create the
-`.venv`, install the dependencies from `requirements.txt` and copy
-`.env.example` to `.env`). Both use the SAME `.venv`, so installing
-through one covers the other:
+Recommended path — `./run-html.sh` (Linux/macOS) or `run.bat`
+(Windows) takes care of everything on the first run: it creates the
+`.venv`, installs the dependencies from `requirements.txt` and copies
+`.env.example` to `.env`.
 
 ```bash
-./run.sh        # desktop GUI
-./run-html.sh   # web interface
+./run-html.sh   # Linux/macOS
+```
+
+```bat
+run.bat         :: Windows — double-clicking it from Explorer also works
 ```
 
 The initial dependency download (torch + ultralytics + insightface
 together) is over 1 GB, so the first run may take several minutes.
 Later runs just start the application.
 
-The very first time either interface actually **starts** (after `.env`
-has real credentials in it), it asks you to **choose a password**: that
-password encrypts `.env` into `.env.enc` and the plaintext `.env` is
-deleted. Every run after that asks for the same password to unlock it.
-**Where** it asks depends on the interface — the desktop GUI (`./run.sh`)
-still asks on the terminal, but the web interface (`./run-html.sh`) asks
-**in the browser itself**, specifically so `./run-html.sh` can be
-double-clicked from a file manager with no terminal involved at all. See
-[Camera credentials & encryption](#camera-credentials--encryption).
+The very first time it actually **starts** (after `.env` has real
+credentials in it), it asks you to **choose a password**: that password
+encrypts `.env` into `.env.enc` and the plaintext `.env` is deleted.
+Every run after that asks for the same password to unlock it. It asks
+**in the browser itself** (not the terminal), specifically so the
+script can be double-clicked from a file manager with no terminal
+involved at all. See [Camera credentials &
+encryption](#camera-credentials--encryption).
 
 To force reinstalling the dependencies (for example after editing
 `requirements.txt`):
 
 ```bash
-./run.sh --reinstall        # or ./run-html.sh --reinstall
+./run-html.sh --reinstall     # Linux/macOS
+run.bat --reinstall           # Windows
 ```
 
 Manual alternative:
@@ -184,20 +168,20 @@ source .venv/bin/activate
 pip install -r requirements.txt
 cp .env.example .env
 
-python src/main.py          # desktop GUI
-python src/main_web.py      # web interface
+python src/main_web.py
 ```
 
-`python src/main.py` prompts for the credential-store password on the
-terminal before the window opens. `python src/main_web.py` does NOT —
-it starts the server immediately and the password is entered on the
-lock screen in the browser instead (see below).
+On Windows, the equivalent is `python -m venv .venv`,
+`.venv\Scripts\activate`, `copy .env.example .env`, then
+`python src\main_web.py`.
 
-The web interface adds three lightweight packages (`fastapi`,
-`uvicorn`, `python-multipart`) — nothing compiled, a few seconds of
-download. In exchange, it **does not need PySide6**: on a headless
-server you can drop `PySide6` from `requirements.txt` and run the web
-version alone.
+`main_web.py` does NOT prompt on the terminal — it starts the server
+immediately and the password is entered on the lock screen in the
+browser instead (see below).
+
+The three web-specific packages (`fastapi`, `uvicorn`,
+`python-multipart`) are lightweight — nothing compiled, a few seconds
+of download — so there is nothing extra to drop for a headless server.
 
 ### GPU (optional)
 
@@ -397,19 +381,16 @@ There are three independent models, each configured in one place:
 ## Camera credentials & encryption
 
 Camera credentials never sit on disk in plain text for long. The
-encryption logic lives in `src/security/env_vault.py`; **where** it asks
-for the password differs by interface:
+encryption logic lives in `src/security/env_vault.py`.
 
-- **Desktop GUI** (`src/main.py`) — asks on the terminal, before the
-  window even opens, since a terminal is guaranteed to be there.
-- **Web interface** (`src/main_web.py`) — asks **in the browser**, on a
-  lock screen (`GET /api/lock` + `POST /api/unlock` in `src/web/api.py`).
-  The server itself starts immediately, with no prompt and no backend
-  yet (no cameras, no AppRuntime) — that is deliberate: it is what lets
-  `./run-html.sh` be **double-clicked** from a file manager with no
-  visible terminal at all. The browser opens automatically, shows the
-  lock screen, and only builds/starts the real backend once you submit
-  the password there.
+`src/main_web.py` asks **in the browser**, on a lock screen
+(`GET /api/lock` + `POST /api/unlock` in `src/web/api.py`). The server
+itself starts immediately, with no prompt and no backend yet (no
+cameras, no AppRuntime) — that is deliberate: it is what lets
+`./run-html.sh` (or `run.bat` on Windows) be **double-clicked** from a
+file manager with no visible terminal at all. The browser opens
+automatically, shows the lock screen, and only builds/starts the real
+backend once you submit the password there.
 
 Both paths share the same underlying behavior:
 
@@ -441,11 +422,10 @@ Both paths share the same underlying behavior:
 
 Since `.env.enc`'s decrypted contents only ever live in memory (never
 written back to disk), simply killing the process loses nothing —
-**but** don't rely on that as your normal way to stop it: the desktop
-GUI closes normally through its window, and the web interface has an
+**but** don't rely on that as your normal way to stop it: use the
 **Exit application** button at the bottom of the sidebar (`POST
-/api/shutdown` in `src/web/api.py`) specifically for when there is no
-terminal to `Ctrl+C` — again, the double-click case. It stops the
+/api/shutdown` in `src/web/api.py`), specifically meant for when there
+is no terminal to `Ctrl+C` — again, the double-click case. It stops the
 camera/inference threads first, then the process itself, and is
 guaranteed to actually exit within a few seconds even if a camera is
 stuck reconnecting (a hard fallback forces the exit if the graceful
@@ -454,19 +434,13 @@ shutdown takes too long).
 ## Language
 
 The interface is available in **English (the default) and
-Portuguese**. Both are driven by a single catalog, `src/i18n.py`, which
-the desktop GUI imports directly and the web interface fetches through
-`GET /api/i18n` — so wording is edited in exactly one place and never
-drifts between the two.
+Portuguese**, driven by a single catalog, `src/i18n.py`, which the web
+interface fetches through `GET /api/i18n` — so wording is edited in
+exactly one place.
 
-**Web interface:** a picker in the sidebar footer switches language
-instantly, with no reload. The choice is stored in that browser
-(`localStorage`), so it survives a refresh and applies only to whoever
-made it.
-
-**Desktop GUI:** it follows `ui.language` in `config/app.yaml` and
-applies it when the widgets are created, so changing it means
-restarting the application. There is no picker there.
+A picker in the sidebar footer switches language instantly, with no
+reload. The choice is stored in that browser (`localStorage`), so it
+survives a refresh and applies only to whoever made it.
 
 ```yaml
 ui:
@@ -475,7 +449,7 @@ ui:
 
 `ui.language` also sets:
 
-- the language the web interface starts in, for a browser that has not
+- the language the interface starts in, for a browser that has not
   chosen yet (a saved choice always wins);
 - the language of the LLM narrator's summaries, since those are
   generated on the server, once, for everyone.
@@ -492,7 +466,7 @@ prompt stay in English.
 
 Everything lives in `CATALOG` in `src/i18n.py`, grouped by area
 (`nav.*`, `settings.*`, `flag.*`, `api.*`, ...). To adjust wording,
-edit the value; both interfaces pick it up.
+edit the value; the interface picks it up.
 
 To add a third language, add its code to `LANGUAGES` and a dictionary
 with the same keys to `CATALOG` — the web picker is built from
@@ -502,15 +476,7 @@ between languages.
 
 ## Running
 
-**Desktop GUI** (PySide6, no browser):
-
-```bash
-./run.sh
-# or, with the virtualenv already active:
-python src/main.py
-```
-
-**Web interface** (opens the browser at `http://localhost:8000`):
+Opens the browser at `http://localhost:8000`:
 
 ```bash
 ./run-html.sh
@@ -518,14 +484,20 @@ python src/main.py
 python src/main_web.py
 ```
 
-`./run-html.sh` needs no terminal interaction at all — after the first
+```bat
+run.bat
+:: or, with the virtualenv already active:
+.venv\Scripts\python src\main_web.py
+```
+
+Neither script needs terminal interaction at all — after the first
 install, **double-clicking it from a file manager works**: it opens the
 browser, which shows the lock screen (password entry — see [Camera
 credentials & encryption](#camera-credentials--encryption)) instead of
 anything appearing on a terminal.
 
-Options for `run-html.sh` (any argument is passed through to
-`src/main_web.py`):
+Options for `run-html.sh` / `run.bat` (any argument is passed through
+to `src/main_web.py`):
 
 | Option | Effect |
 |---|---|
@@ -562,35 +534,28 @@ Options for `run-html.sh` (any argument is passed through to
 > the same machine can reach it directly) and `caddy run` alongside it;
 > forward the router's port 443 to Caddy, not directly to uvicorn.
 
-Both interfaces can run at the same time, but each opens **its own**
-set of connections to the cameras (they are separate processes) — on a
-modest machine, prefer one at a time.
+Running more than one instance at once opens **its own** set of
+connections to the cameras per process — on a modest machine, prefer
+one at a time.
 
-To stop the web interface, use its **Exit application** button (sidebar
+To stop the application, use its **Exit application** button (sidebar
 footer) rather than closing the terminal or killing the process — see
 [Stopping the application](#stopping-the-application).
 
 ## Using the interface
 
-The same four screens exist in both interfaces:
-
 | Tab | Purpose |
 |---|---|
-| **Live** | Grid with every configured camera, with detection boxes drawn according to the task assigned to each one |
-| **Calibration** | Freezes a live frame from a camera so you can draw, by clicking, a counting line or a zone polygon for one of its tasks — saved straight into `tasks.yaml` |
-| **Settings** | List of tasks per camera: add/remove tasks (created pre-filled with working defaults — see [Available vision tasks](#available-vision-tasks)), edit `detect_fps`/`required_ppe`/every other type-specific parameter, and enable/edit flags |
+| **Live** | Grid with every configured camera, with detection boxes drawn according to the task assigned to each one; adjustable columns and quality, click to expand a camera, add/edit/delete cameras in place (see below) |
+| **Calibration** | Freezes a live frame from a camera so you can draw, by clicking, a counting line or a zone polygon for one of its tasks — saved straight into `tasks.yaml`, with the already-saved geometry dashed underneath |
+| **Settings** | List of tasks per camera: add/remove tasks (created pre-filled with working defaults — see [Available vision tasks](#available-vision-tasks)), edit `detect_fps`/`required_ppe`/every other type-specific parameter, and enable/edit flags. Saving writes `tasks.yaml` and, with the *Apply now* button, reloads the pipelines immediately |
 | **Employees** | Employee enrollment for `face_id` (capture from a camera or upload a photo + name); lists who is already enrolled |
 | **Alerts** (side panel) | Live table of recent flags, with the latest narrator summary at the top (when enabled) |
 
-Differences between the two:
-
-| | Desktop (`./run.sh`) | Web (`./run-html.sh`) |
-|---|---|---|
-| Saving a task | writes to `tasks.yaml`; takes effect on the **next run** | writes and **reloads the pipelines immediately** (*Apply now* button) |
-| Live | a fixed grid | adjustable columns and quality; click to expand a camera; add/edit/delete cameras in place (see below) |
-| Calibration | points drawn on a `QGraphicsScene` | numbered points on a `<canvas>`, with the already-saved geometry dashed underneath |
-| Language | follows `app.yaml`, needs a restart | picker in the sidebar, switches instantly |
-| Remote access | no | yes, with `--host 0.0.0.0` (per-browser session after unlock; add a TLS reverse proxy for internet exposure — see the note under [Running](#running)) |
+The language picker (sidebar footer) switches instantly, with no
+reload. Remote access is available with `--host 0.0.0.0` (per-browser
+session after unlock; add a TLS reverse proxy for internet exposure —
+see the note under [Running](#running)).
 
 ## Web interface
 
@@ -652,13 +617,11 @@ connection open and sends one JPEG per frame, a format the browser
 understands on its own. No WebSocket, WebRTC or video player is
 involved.
 
-The detection boxes are drawn **on the server**
-(`src/vision/overlay.py`, the same module the Qt GUI uses), not in the
-browser — which is why both interfaces show exactly the same overlay.
+The detection boxes are drawn **on the server** (`src/vision/overlay.py`),
+not in the browser.
 
 The rest of the screen (camera status, alerts, narrator summary) is
-refreshed by *polling*: one request per second to `/api/state`, the
-same pattern as the desktop GUI's `QTimer`.
+refreshed by *polling*: one request per second to `/api/state`.
 
 ### API routes
 
@@ -858,14 +821,18 @@ model on the first run, when they are not cached yet.
 
 Wipes `.venv/`, every `__pycache__/`/`.pytest_cache/`, `data/*.db` and
 the camera credentials (`.env`/`.env.enc`) — everything generated or
-local that `./run.sh`/`./run-html.sh` will recreate on the next start.
-`config/cameras.yaml`, `config/tasks.yaml`, `config/app.yaml` and the
-downloaded model weights are kept unless you pass `--purge-config` /
-`--purge-models`, since redoing those is expensive.
+local that `./run-html.sh` (or `run.bat`) will recreate on the next
+start. `config/cameras.yaml`, `config/tasks.yaml`, `config/app.yaml`
+and the downloaded model weights are kept unless you pass
+`--purge-config` / `--purge-models`, since redoing those is expensive.
 
 **The camera credentials are not recoverable after this** — there is no
 backup of the password or of `.env.enc`'s contents. Note down your
 camera URLs/credentials first if you have not saved them elsewhere.
+
+`reset.sh` is a bash script; on Windows, run it from WSL or Git Bash, or
+just delete `.venv/`, `data/*.db`, `.env` and `.env.enc` by hand and
+re-run `run.bat`.
 
 ## Troubleshooting
 
@@ -893,9 +860,9 @@ is reachable on the network (e.g. `nc -zv <ip> 554`).
 **"Wrong password" at startup / forgot the credential-store password**
 There is no recovery — see [Camera credentials &
 encryption](#camera-credentials--encryption). Five wrong attempts shut
-the application down (on the web interface, the lock screen shows this
-and the server stops); run `./run.sh`/`./run-html.sh` again to retry.
-If the password is truly lost, `./reset.sh` (see [Resetting the
+the application down (the lock screen shows this and the server stops);
+run `./run-html.sh` / `run.bat` again to retry. If the password is
+truly lost, `./reset.sh` (see [Resetting the
 application](#resetting-the-application)) removes `.env.enc` so you can
 start over, but the credentials in it are gone for good.
 
@@ -920,8 +887,7 @@ The vault in `src/security/env_vault.py` was never unlocked — normal
 while the web interface's lock screen is still showing (see above).
 Outside of that, it can happen if `web.server.create_web_app()` is
 imported and run some other way without ever calling `POST
-/api/unlock` or `security.env_vault.unlock_interactive()`. Restart
-through the normal entry points.
+/api/unlock`. Restart through the normal entry point (`src/main_web.py`).
 
 **`Camera 'camX' has no pipeline: ...` in the log**
 That camera's task requires geometry and has not been calibrated yet
@@ -929,9 +895,10 @@ That camera's task requires geometry and has not been calibrated yet
 the **Calibration** tab. The application keeps running normally; only
 that camera goes without detection.
 
-**`Address already in use` when running `./run-html.sh`**
+**`Address already in use` when starting the application**
 Port 8000 is already taken (most likely by another instance). Run
-`./run-html.sh --port 9000` or stop the previous instance.
+`./run-html.sh --port 9000` (or `run.bat --port 9000`) or stop the
+previous instance.
 
 **Video does not show in the web interface, but the cameras are connected**
 Each open camera holds one HTTP connection. Many browser tabs open at
@@ -940,9 +907,9 @@ or lower the quality in the **Live** tab's selector (which also cuts
 CPU and bandwidth).
 
 **The web interface opens, but the sidebar says "no connection to the backend"**
-The server went down or is restarting — check the terminal where
-`./run-html.sh` is running. The page recovers on its own as soon as the
-backend answers again.
+The server went down or is restarting — check the terminal (or console
+window, on Windows) where it is running. The page recovers on its own
+as soon as the backend answers again.
 
 **The web interface shows raw keys like `nav.live` instead of text**
 The translation catalog failed to load (`GET /api/i18n`). Reload the

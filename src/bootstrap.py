@@ -3,19 +3,12 @@ bootstrap.py
 
 Assembles and starts the ENTIRE application backend (cameras, inference
 pipelines, notifiers, database and LLM narrator) without knowing
-anything about graphical interfaces.
+anything about the web interface built on top of it (src/main_web.py).
 
-It exists so that both available interfaces share exactly the same
-backend:
-
-    src/main.py       -> native desktop GUI (PySide6/Qt), no browser
-    src/main_web.py   -> web UI (HTML/CSS/JS) served by FastAPI
-
-Each entry point only does: `runtime = AppRuntime.create(); runtime.start()`,
+The entry point only does: `runtime = AppRuntime.create(); runtime.start()`,
 uses `runtime.<component>` to read frames/alerts, and calls
 `runtime.stop()` on exit. Any change to how the backend is composed (a
-new notifier, another configuration source) is made here once and
-applies to both UIs.
+new notifier, another configuration source) is made here once.
 """
 
 import logging
@@ -57,10 +50,10 @@ TRIGGERS_CONFIG_PATH = os.path.join(CONFIG_DIR, "Triggers.yaml")
 class AppRuntime:
     """Groups the live backend components and their lifecycle.
 
-    Not a singleton: the web UI keeps the instance in web/server.py and
-    the Qt GUI passes the components to MainWindow. Build it through
-    AppRuntime.create() (__init__ only takes already-assembled pieces,
-    which makes constructing a fake runtime in tests easy).
+    Not a singleton: the web UI keeps the instance in web/server.py.
+    Build it through AppRuntime.create() (__init__ only takes
+    already-assembled pieces, which makes constructing a fake runtime in
+    tests easy).
     """
 
     def __init__(

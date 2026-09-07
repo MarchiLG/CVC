@@ -1,21 +1,18 @@
 """
 main_web.py
 
-Entry point of the WEB interface (HTML/CSS/JS in the browser). Started
-through ./run-html.sh — including by just double-clicking it, which is
-exactly why this file does NOT ask for the credential-store password on
-the terminal (there may not be one visible/attached): the server starts
-LOCKED and the browser's lock screen unlocks it over the API (POST
-/api/unlock in web/api.py) instead. See src/security/env_vault.py for
-the encryption itself, and web/server.py's create_web_app() for how a
-locked start works. The desktop GUI (src/main.py) is unaffected — it
-still prompts on the terminal, since it always has one.
+Entry point of the application (HTML/CSS/JS in the browser). Started
+through ./run-html.sh on Linux/macOS or run.bat on Windows — including
+by just double-clicking it, which is exactly why this file does NOT ask
+for the credential-store password on the terminal (there may not be one
+visible/attached): the server starts LOCKED and the browser's lock
+screen unlocks it over the API (POST /api/unlock in web/api.py)
+instead. See src/security/env_vault.py for the encryption itself, and
+web/server.py's create_web_app() for how a locked start works.
 
-It starts the same backend as the desktop GUI (bootstrap.AppRuntime:
-cameras, YOLO inference, notifications, LLM narrator) and exposes it
-through a local HTTP server instead of Qt windows. Neither interface
-replaces the other — for the desktop version, without a browser, use
-src/main.py / ./run.sh.
+It assembles the backend (bootstrap.AppRuntime: cameras, YOLO
+inference, notifications, LLM narrator) and exposes it through a local
+HTTP server.
 
 Usage:
     python src/main_web.py [--host 0.0.0.0] [--port 8000] [--no-browser]
